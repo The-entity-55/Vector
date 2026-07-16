@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { orgQuery } from "./lib/customFunctions";
-import { getCurrentUserOrNull } from "./lib/auth";
+import { getCurrentUserOrNull, getOrgClaims } from "./lib/auth";
 import { planValidator, memberRoleValidator } from "./schema";
 
 const orgShape = {
@@ -31,13 +31,13 @@ export const current = query({
     if (!user) {
       return null;
     }
-    const claims = identity as unknown as { org_id?: string };
-    if (!claims.org_id) {
+    const { orgId } = getOrgClaims(identity);
+    if (!orgId) {
       return null;
     }
     const org = await ctx.db
       .query("organizations")
-      .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", claims.org_id!))
+      .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", orgId))
       .unique();
     if (!org) {
       return null;

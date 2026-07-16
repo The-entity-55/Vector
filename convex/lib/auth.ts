@@ -1,12 +1,30 @@
 import { Doc } from "../_generated/dataModel";
 import { MutationCtx, QueryCtx } from "../_generated/server";
 
-/** Custom claims we add via the Clerk "convex" JWT template. */
+/**
+ * Active-org claims from the Clerk JWT. Clerk v2 session tokens nest org data
+ * under `o` ({@link https://clerk.com/docs/backend-requests/resources/session-tokens});
+ * older flat `org_*` claims are still read as a fallback.
+ */
 type OrgClaims = {
   org_id?: string;
   org_slug?: string;
   org_role?: string;
+  o?: { id?: string; slg?: string; rol?: string };
 };
+
+export function getOrgClaims(identity: unknown): {
+  orgId?: string;
+  orgSlug?: string;
+  orgRole?: string;
+} {
+  const claims = identity as OrgClaims;
+  return {
+    orgId: claims.org_id ?? claims.o?.id,
+    orgSlug: claims.org_slug ?? claims.o?.slg,
+    orgRole: claims.org_role ?? claims.o?.rol,
+  };
+}
 
 export type AuthContext = {
   user: Doc<"users">;
@@ -69,14 +87,14 @@ export async function getAuthContext(
     throw new Error("User not synced yet");
   }
 
-  const claims = identity as unknown as OrgClaims;
-  if (!claims.org_id) {
+  const { orgId } = getOrgClaims(identity);
+  if (!orgId) {
     throw new Error("No active organization");
   }
 
   const org = await ctx.db
     .query("organizations")
-    .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", claims.org_id!))
+    .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", orgId))
     .unique();
   if (!org) {
     throw new Error("Organization not synced yet");
