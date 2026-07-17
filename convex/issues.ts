@@ -154,6 +154,26 @@ export const create = orgMutation({
       actorId: ctx.user._id,
     });
 
+    // Mirror the due date onto the assignee's Google Calendar (no-op if they
+    // haven't connected Google / granted Calendar). Needs a due date and an
+    // assignee — an unassigned task has no calendar to write to.
+    if (args.dueDate !== undefined && args.assigneeId !== undefined) {
+      const assignee = await ctx.db.get(args.assigneeId);
+      if (assignee) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.google.calendar.createDueDateEvent,
+          {
+            clerkUserId: assignee.clerkId,
+            identifier: `${team.key}-${number}`,
+            title: args.title.trim(),
+            description: args.description,
+            dueDate: args.dueDate,
+          }
+        );
+      }
+    }
+
     return issueId;
   },
 });
@@ -249,6 +269,39 @@ export const update = orgMutation({
         assigneeId: args.assigneeId,
         actorId: ctx.user._id,
       });
+    }
+
+    // Mirror a newly-set / changed due date onto the assignee's Google Calendar.
+    // The effective assignee is the new one (if being reassigned) or the current
+    // one. Fires only when the due date actually changes to a real date, to
+    // avoid duplicate events on unrelated edits (the frozen schema has nowhere
+    // to store the created event id, so we can't update an existing event yet).
+    const dueDateChanged =
+      args.dueDate !== undefined &&
+      args.dueDate !== null &&
+      args.dueDate !== issue.dueDate;
+    if (dueDateChanged) {
+      const effectiveAssigneeId =
+        args.assigneeId !== undefined
+          ? args.assigneeId ?? undefined
+          : issue.assigneeId;
+      if (effectiveAssigneeId) {
+        const assignee = await ctx.db.get(effectiveAssigneeId);
+        const team = await ctx.db.get(issue.teamId);
+        if (assignee && team) {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.google.calendar.createDueDateEvent,
+            {
+              clerkUserId: assignee.clerkId,
+              identifier: `${team.key}-${issue.number}`,
+              title: updates.title ?? issue.title,
+              description: updates.description ?? issue.description,
+              dueDate: args.dueDate as number,
+            }
+          );
+        }
+      }
     }
     return null;
   },
