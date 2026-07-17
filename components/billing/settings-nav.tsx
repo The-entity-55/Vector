@@ -1,6 +1,6 @@
 "use client";
 
-import { Users } from "lucide-react";
+import { Plug, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const SETTINGS_PAGES = [
   // { label: "Billing", segment: "billing", icon: CreditCard },
   { label: "Members", segment: "members", icon: Users },
+  { label: "Integrations", segment: "integrations", icon: Plug },
 ] as const;
 
 /** Left-hand navigation for the workspace settings section. */

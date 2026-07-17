@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { QueryCtx } from "./_generated/server";
 import { logActivity } from "./lib/activity";
@@ -225,6 +226,20 @@ export const update = orgMutation({
         field: change.field,
         oldValue: change.oldValue,
         newValue: change.newValue,
+      });
+    }
+
+    // Notify a newly-assigned member over Telegram (no-op if not linked).
+    if (
+      args.assigneeId !== undefined &&
+      args.assigneeId !== null &&
+      args.assigneeId !== issue.assigneeId
+    ) {
+      await ctx.scheduler.runAfter(0, internal.telegram.notify.onIssueAssigned, {
+        orgId: ctx.org._id,
+        issueId: issue._id,
+        assigneeId: args.assigneeId,
+        actorId: ctx.user._id,
       });
     }
     return null;

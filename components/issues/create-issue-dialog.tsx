@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { Sparkles } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +46,7 @@ export function CreateIssueDialog({
   const teams = useQuery(api.teams.list, open ? {} : "skip");
   const members = useQuery(api.organizations.listMembers, open ? {} : "skip");
   const createIssue = useMutation(api.issues.create);
+  const generateDescription = useAction(api.agent.triage.generateDescription);
 
   const [selectedTeamId, setSelectedTeamId] = useState<
     Id<"teams"> | undefined
@@ -56,9 +58,47 @@ export function CreateIssueDialog({
   const [assigneeId, setAssigneeId] = useState<Id<"users"> | undefined>();
   const [dueDate, setDueDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   // Fall back to the default/first team without needing an effect.
   const teamId = selectedTeamId ?? defaultTeamId ?? teams?.[0]?._id;
+
+  const generateTaskDescription = async () => {
+    if (!title.trim() || generatingDescription) {
+      return;
+    }
+    setGeneratingDescription(true);
+    try {
+      const teamName = teams?.find((team) => team._id === teamId)?.name;
+      const assigneeName = members?.find(
+        (member) => member.userId === assigneeId
+      )?.name;
+      const context = [
+        teamName && `Team: ${teamName}`,
+        `Status: ${status}`,
+        priority !== "none" && `Priority: ${priority}`,
+        assigneeName && `Assignee: ${assigneeName}`,
+        dueDate && `Due date: ${dueDate}`,
+      ]
+        .filter(Boolean)
+        .join("; ");
+      const result = await generateDescription({ title, context });
+      if (result.ok) {
+        setDescription(result.description);
+        toast.success("Description generated");
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not generate a description"
+      );
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!teamId || !title.trim()) {
@@ -116,12 +156,25 @@ export function CreateIssueDialog({
             }}
             className="border-none px-0 text-lg font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
           />
-          <Textarea
+          <div className="relative">
+            <Textarea
             placeholder="Add description…"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="min-h-20 resize-none border-none px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
-          />
+              className="min-h-20 resize-none border-none px-0 pb-10 shadow-none focus-visible:ring-0 dark:bg-transparent"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={!title.trim() || generatingDescription || submitting}
+              onClick={() => void generateTaskDescription()}
+              className="absolute bottom-1 right-0 h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+            >
+              <Sparkles className="size-3.5" />
+              {generatingDescription ? "Generating…" : "Generate Description"}
+            </Button>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select
               value={teamId ?? ""}
