@@ -12,6 +12,55 @@ import {
   isAiConfigured,
 } from "./models";
 
+const failure = v.object({ ok: v.literal(false), error: v.string() });
+
+/** Generate an editable task description from the context entered so far. */
+export const generateDescription = action({
+  args: {
+    title: v.string(),
+    context: v.optional(v.string()),
+  },
+  returns: v.union(
+    failure,
+    v.object({ ok: v.literal(true), description: v.string() })
+  ),
+  handler: async (ctx, args) => {
+    await ctx.runQuery(internal.agent.data.authorizeAi, {});
+    if (!isAiConfigured()) {
+      return { ok: false as const, error: AI_NOT_CONFIGURED_MESSAGE };
+    }
+
+    const title = args.title.trim();
+    if (!title) {
+      return { ok: false as const, error: "Add a task name first." };
+    }
+
+    try {
+      const { text } = await generateText({
+        model: chatModel,
+        system:
+          "You write clear, practical task descriptions for a collaborative workspace. Return only the description, with no preface, quotation marks, or markdown heading. Keep it concise: explain the goal, useful context, and expected outcome. Do not invent specific facts, dates, people, or technical details that are not in the context.",
+        prompt: `Task name: ${title}\n${args.context ? `Task context: ${args.context}` : "No additional task context was provided."}`,
+      });
+
+      const description = text.trim();
+      if (!description) {
+        return {
+          ok: false as const,
+          error: "The AI returned an empty description.",
+        };
+      }
+      return { ok: true as const, description };
+    } catch (error) {
+      console.error("Task description generation failed", error);
+      return {
+        ok: false as const,
+        error: "Could not generate a description. Please try again.",
+      };
+    }
+  },
+});
+
 /**
  * Triage assist for the issue detail page (Track D).
  *
@@ -23,8 +72,6 @@ import {
 
 const PRIORITIES = ["none", "urgent", "high", "medium", "low"] as const;
 type SuggestedPriority = (typeof PRIORITIES)[number];
-
-const failure = v.object({ ok: v.literal(false), error: v.string() });
 
 type IssueSummary = Infer<typeof issueSummaryValidator>;
 

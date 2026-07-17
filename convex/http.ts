@@ -51,4 +51,30 @@ http.route({
   }),
 });
 
+// Telegram sends bot updates here. The `secret_token` we set via setWebhook is
+// echoed in this header; handleUpdate verifies it against a live integration
+// before acting. Always 200 so Telegram doesn't retry-storm on our errors.
+http.route({
+  path: "/telegram-webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const secret = request.headers.get("x-telegram-bot-api-secret-token");
+    let update: unknown;
+    try {
+      update = await request.json();
+    } catch {
+      return new Response(null, { status: 200 });
+    }
+    try {
+      await ctx.runMutation(internal.telegram.bot.handleUpdate, {
+        update,
+        secret,
+      });
+    } catch (error) {
+      console.error("Telegram webhook handling failed", error);
+    }
+    return new Response(null, { status: 200 });
+  }),
+});
+
 export default http;

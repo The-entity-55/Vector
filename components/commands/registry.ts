@@ -57,6 +57,7 @@ const builtinCommands: AppCommand[] = [
 import { boardViewCommands } from "@/components/board/commands";
 import { billingCommands } from "@/components/billing/commands";
 import { aiCommands } from "@/components/ai/commands";
+import { integrationsCommands } from "@/components/integrations/commands";
 
 export const appCommands: AppCommand[] = [
   ...builtinCommands,
@@ -65,4 +66,5 @@ export const appCommands: AppCommand[] = [
   ...projectCycleCommands,
   ...billingCommands,
   ...aiCommands,
+  ...integrationsCommands,
 ];

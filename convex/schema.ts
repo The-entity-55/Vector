@@ -224,4 +224,40 @@ export default defineSchema({
   })
     .index("by_org", ["orgId"])
     .index("by_creator", ["creatorId"]),
+
+  // ── Telegram integration ───────────────────────────────────────────────
+  // Per-org Telegram bot connection. botToken/webhookSecret are secrets read
+  // only inside internal functions — never returned to the client.
+  telegramIntegrations: defineTable({
+    orgId: v.id("organizations"),
+    botToken: v.string(),
+    botUsername: v.optional(v.string()),
+    /** Random token verified against Telegram's secret_token webhook header. */
+    webhookSecret: v.string(),
+    connectedBy: v.id("users"),
+    active: v.boolean(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_webhook_secret", ["webhookSecret"]),
+
+  // Links one Telegram chat to one Vector (org, user). Inbound webhook looks
+  // up the chat here to resolve who is talking and in which workspace.
+  telegramLinks: defineTable({
+    orgId: v.id("organizations"),
+    userId: v.id("users"),
+    telegramChatId: v.number(),
+    telegramUsername: v.optional(v.string()),
+    /** Reused agent thread for this chat's conversation history. */
+    threadId: v.optional(v.string()),
+  })
+    .index("by_chat", ["telegramChatId"])
+    .index("by_org_and_user", ["orgId", "userId"]),
+
+  // Short-lived one-time codes for the /start deep-link account-linking flow.
+  telegramLinkCodes: defineTable({
+    orgId: v.id("organizations"),
+    userId: v.id("users"),
+    code: v.string(),
+    expiresAt: v.number(),
+  }).index("by_code", ["code"]),
 });
