@@ -62,7 +62,8 @@ http.route({
     let update: unknown;
     try {
       update = await request.json();
-    } catch {
+    } catch (err) {
+      console.warn("Telegram webhook received invalid JSON payload", err);
       return new Response(null, { status: 200 });
     }
     try {

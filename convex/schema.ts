@@ -259,5 +259,7 @@ export default defineSchema({
     userId: v.id("users"),
     code: v.string(),
     expiresAt: v.number(),
-  }).index("by_code", ["code"]),
+  })
+    .index("by_code", ["code"])
+    .index("by_org_and_user", ["orgId", "userId"]),
 });

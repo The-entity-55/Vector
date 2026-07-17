@@ -20,6 +20,23 @@ type TelegramResponse<T> = {
   error_code?: number;
 };
 
+export class TelegramError extends Error {
+  status?: number;
+  errorCode?: number;
+
+  constructor(
+    public method: string,
+    public description: string,
+    status?: number,
+    errorCode?: number
+  ) {
+    super(`Telegram API ${method} failed: ${description}`);
+    this.name = "TelegramError";
+    this.status = status;
+    this.errorCode = errorCode;
+  }
+}
+
 async function callTelegram<T>(
   botToken: string,
   method: string,
@@ -35,8 +52,11 @@ async function callTelegram<T>(
   );
   const data = (await response.json()) as TelegramResponse<T>;
   if (!data.ok) {
-    throw new Error(
-      `Telegram API ${method} failed: ${data.description ?? response.statusText}`
+    throw new TelegramError(
+      method,
+      data.description ?? response.statusText,
+      response.status,
+      data.error_code
     );
   }
   return data.result as T;
@@ -99,13 +119,19 @@ export async function sendMessage(
         parse_mode: "Markdown",
         disable_web_page_preview: true,
       });
-    } catch {
-      // Fall back to unformatted text if Markdown parsing fails.
-      await callTelegram<unknown>(botToken, "sendMessage", {
-        chat_id: chatId,
-        text: chunk,
-        disable_web_page_preview: true,
-      });
+    } catch (err) {
+      // Fall back to unformatted text only if it's a 400 Bad Request (which includes formatting errors).
+      // Retrying on network errors or other status codes (e.g. 403 Forbidden, 429 Too Many Requests) is avoided.
+      if (err instanceof TelegramError && err.status === 400) {
+        console.warn("Telegram Markdown format failed, falling back to plain text:", err.message);
+        await callTelegram<unknown>(botToken, "sendMessage", {
+          chat_id: chatId,
+          text: chunk,
+          disable_web_page_preview: true,
+        });
+        continue;
+      }
+      throw err;
     }
   }
 }

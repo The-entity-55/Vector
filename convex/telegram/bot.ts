@@ -105,6 +105,8 @@ export const handleUpdate = internalMutation({
       .query("telegramLinks")
       .withIndex("by_chat", (q) => q.eq("telegramChatId", chatId))
       .unique();
+    // Security check: Verify that this Telegram chat link belongs to the org that owns this bot webhook.
+    // This strictly protects against cross-org access by verifying link.orgId matches the webhook's authenticated orgId.
     if (!link || link.orgId !== orgId) {
       await send(formatUnlinked(integration.botUsername));
       return null;

@@ -243,13 +243,12 @@ export const createLinkCode = orgMutation({
     // Clear any prior codes for this user so only the newest is valid.
     const prior = await ctx.db
       .query("telegramLinkCodes")
-      // eslint-disable-next-line @convex-dev/no-filter-in-query
-      .filter((q) => q.eq(q.field("userId"), ctx.user._id))
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("orgId", ctx.org._id).eq("userId", ctx.user._id)
+      )
       .collect();
     for (const code of prior) {
-      if (code.orgId === ctx.org._id) {
-        await ctx.db.delete(code._id);
-      }
+      await ctx.db.delete(code._id);
     }
 
     const code = randomToken();
