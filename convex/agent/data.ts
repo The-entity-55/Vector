@@ -395,6 +395,14 @@ export const createIssueForAgent = internalMutation({
       issueId,
     });
 
+    // Broadcast the new task to the workspace over Telegram (mirrors
+    // issues.create so agent/Telegram-created tasks are announced too).
+    await ctx.scheduler.runAfter(0, internal.telegram.notify.onIssueCreated, {
+      orgId: args.orgId,
+      issueId,
+      actorId: args.actorUserId,
+    });
+
     return { issueId, identifier: `${team.key}-${number}` };
   },
 });
@@ -832,5 +840,84 @@ export const standupForOrg = internalQuery({
     }
 
     return { sinceHours: args.sinceHours, entries };
+  },
+});
+
+/**
+ * Workspace-wide activity digest over a look-back window, for the scheduled
+ * Telegram digests. Buckets recent activity into created / completed / other
+ * updates / new comments, with a short sample of issues per bucket plus totals.
+ */
+export const orgActivityDigest = internalQuery({
+  args: {
+    orgId: v.id("organizations"),
+    windowHours: v.number(),
+  },
+  returns: v.object({
+    windowHours: v.number(),
+    created: v.array(issueSummaryValidator),
+    completed: v.array(issueSummaryValidator),
+    updated: v.array(issueSummaryValidator),
+    commented: v.array(issueSummaryValidator),
+    createdCount: v.number(),
+    completedCount: v.number(),
+    updatedCount: v.number(),
+    commentedCount: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const since = Date.now() - args.windowHours * 60 * 60 * 1000;
+    const recent = (
+      await ctx.db
+        .query("activity")
+        .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+        .order("desc")
+        .take(1000)
+    ).filter((entry) => entry._creationTime >= since);
+
+    // Distinct issue ids per bucket (an issue touched twice counts once).
+    const createdIds = new Set<Id<"issues">>();
+    const completedIds = new Set<Id<"issues">>();
+    const updatedIds = new Set<Id<"issues">>();
+    const commentedIds = new Set<Id<"issues">>();
+    for (const entry of recent) {
+      if (entry.type === "created") {
+        createdIds.add(entry.issueId);
+      } else if (
+        entry.type === "status_changed" &&
+        entry.newValue === "done"
+      ) {
+        completedIds.add(entry.issueId);
+      } else if (entry.type === "commented") {
+        commentedIds.add(entry.issueId);
+      } else if (entry.type.endsWith("_changed")) {
+        updatedIds.add(entry.issueId);
+      }
+    }
+
+    // Sample up to 8 issues per bucket for the message body.
+    const teamKeys = new Map<Id<"teams">, string>();
+    const sample = async (ids: Set<Id<"issues">>) => {
+      const result = [];
+      for (const issueId of ids) {
+        if (result.length >= 8) break;
+        const issue = await ctx.db.get(issueId);
+        if (issue && issue.orgId === args.orgId) {
+          result.push(await summarizeIssue(ctx, issue, teamKeys));
+        }
+      }
+      return result;
+    };
+
+    return {
+      windowHours: args.windowHours,
+      created: await sample(createdIds),
+      completed: await sample(completedIds),
+      updated: await sample(updatedIds),
+      commented: await sample(commentedIds),
+      createdCount: createdIds.size,
+      completedCount: completedIds.size,
+      updatedCount: updatedIds.size,
+      commentedCount: commentedIds.size,
+    };
   },
 });

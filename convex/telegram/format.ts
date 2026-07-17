@@ -125,3 +125,76 @@ export function formatAssignment(
 ): string {
   return `🔔 *${teamKey}-${issue.number}* was assigned to you by ${actorName}\n${truncate(issue.title, 80)}`;
 }
+
+/** Workspace broadcast sent when any new issue is created. */
+export function formatNewIssue(
+  issue: Doc<"issues">,
+  teamKey: string,
+  creatorName: string,
+  assigneeName: string | null
+): string {
+  const who = assigneeName ? `assigned to ${assigneeName}` : "unassigned";
+  return `🆕 *${teamKey}-${issue.number}* created by ${creatorName} · ${who}\n${truncate(issue.title, 80)}`;
+}
+
+// ── Scheduled digest ────────────────────────────────────────────────────────
+
+export type DigestSlot = "morning" | "afternoon" | "evening";
+
+type DigestData = {
+  windowHours: number;
+  created: IssueSummary[];
+  completed: IssueSummary[];
+  updated: IssueSummary[];
+  commented: IssueSummary[];
+  createdCount: number;
+  completedCount: number;
+  updatedCount: number;
+  commentedCount: number;
+};
+
+const SLOT_GREETING: Record<DigestSlot, string> = {
+  morning: "🌅 *Good morning — overnight recap*",
+  afternoon: "☀️ *Afternoon update*",
+  evening: "🌆 *Evening wrap-up*",
+};
+
+/**
+ * Compact workspace digest for a slot. Returns null when nothing changed in the
+ * window so the caller can skip sending an empty ping.
+ */
+export function formatDigest(slot: DigestSlot, data: DigestData): string | null {
+  const total =
+    data.createdCount +
+    data.completedCount +
+    data.updatedCount +
+    data.commentedCount;
+  if (total === 0) {
+    return null;
+  }
+
+  const lines = [SLOT_GREETING[slot], ""];
+  const section = (
+    emoji: string,
+    label: string,
+    count: number,
+    items: IssueSummary[]
+  ) => {
+    if (count === 0) return;
+    lines.push(`${emoji} *${label}* (${count})`);
+    for (const item of items) {
+      lines.push(`  • ${issueRef(item)}`);
+    }
+    if (count > items.length) {
+      lines.push(`  …and ${count - items.length} more`);
+    }
+    lines.push("");
+  };
+
+  section("✅", "Completed", data.completedCount, data.completed);
+  section("🆕", "Created", data.createdCount, data.created);
+  section("✏️", "Updated", data.updatedCount, data.updated);
+  section("💬", "New comments", data.commentedCount, data.commented);
+
+  return lines.join("\n").trim();
+}

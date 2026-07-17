@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { internalMutation } from "../_generated/server";
-import { formatAssignment } from "./format";
+import { internalMutation, internalQuery } from "../_generated/server";
+import { formatAssignment, formatNewIssue } from "./format";
 
 /**
  * Outbound push notifications to linked Telegram chats.
@@ -40,6 +40,98 @@ export const notifyUser = internalMutation({
         text: args.text,
       });
     }
+    return null;
+  },
+});
+
+/**
+ * Send a message to EVERY chat linked anywhere in an org (all members). Used for
+ * workspace-wide announcements such as new-task broadcasts. No-ops silently if
+ * the integration is missing or inactive.
+ */
+export const broadcastToOrg = internalMutation({
+  args: {
+    orgId: v.id("organizations"),
+    text: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const integration = await ctx.db
+      .query("telegramIntegrations")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .unique();
+    if (!integration || !integration.active) {
+      return null;
+    }
+    // The by_org_and_user index is prefixed by orgId, so an eq on just orgId
+    // returns every linked chat in the org without touching the schema.
+    const links = await ctx.db
+      .query("telegramLinks")
+      .withIndex("by_org_and_user", (q) => q.eq("orgId", args.orgId))
+      .collect();
+    for (const link of links) {
+      await ctx.scheduler.runAfter(0, internal.telegram.bot.sendText, {
+        orgId: args.orgId,
+        chatId: link.telegramChatId,
+        text: args.text,
+      });
+    }
+    return null;
+  },
+});
+
+/** Chat ids linked in an org — used by the scheduled digest action. */
+export const orgTelegramChats = internalQuery({
+  args: { orgId: v.id("organizations") },
+  returns: v.array(v.number()),
+  handler: async (ctx, args): Promise<number[]> => {
+    const integration = await ctx.db
+      .query("telegramIntegrations")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .unique();
+    if (!integration || !integration.active) {
+      return [];
+    }
+    const links = await ctx.db
+      .query("telegramLinks")
+      .withIndex("by_org_and_user", (q) => q.eq("orgId", args.orgId))
+      .collect();
+    return links.map((link) => link.telegramChatId);
+  },
+});
+
+/**
+ * Announce a newly-created issue to the whole workspace over Telegram.
+ * Scheduled from `issues.create` (and the agent's create tool) for every new
+ * task, whether or not it has an assignee. No-ops if nobody has linked Telegram.
+ */
+export const onIssueCreated = internalMutation({
+  args: {
+    orgId: v.id("organizations"),
+    issueId: v.id("issues"),
+    actorId: v.id("users"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const issue = await ctx.db.get(args.issueId);
+    if (!issue || issue.orgId !== args.orgId) {
+      return null;
+    }
+    const team = await ctx.db.get(issue.teamId);
+    const creator = await ctx.db.get(args.actorId);
+    const assignee = issue.assigneeId
+      ? await ctx.db.get(issue.assigneeId)
+      : null;
+    const text = formatNewIssue(
+      issue,
+      team?.key ?? "?",
+      creator?.name ?? "someone",
+      assignee?.name ?? null
+    );
+    await ctx.runMutation(internal.telegram.notify.broadcastToOrg, {
+      orgId: args.orgId,
+      text,
+    });
     return null;
   },
 });

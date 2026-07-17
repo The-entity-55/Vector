@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import { Id } from "../_generated/dataModel";
 import {
   action,
   internalMutation,
@@ -127,6 +128,16 @@ export const markDisconnected = internalMutation({
       await ctx.db.patch(row._id, { active: false });
     }
     return null;
+  },
+});
+
+/** Org ids of every active Telegram integration — used by scheduled digests. */
+export const listActiveIntegrationOrgs = internalQuery({
+  args: {},
+  returns: v.array(v.id("organizations")),
+  handler: async (ctx): Promise<Id<"organizations">[]> => {
+    const rows = await ctx.db.query("telegramIntegrations").collect();
+    return rows.filter((row) => row.active).map((row) => row.orgId);
   },
 });
 
