@@ -146,6 +146,14 @@ export const create = orgMutation({
       type: "created",
     });
 
+    // Announce every new task to the whole workspace over Telegram (no-op if
+    // no members have linked Telegram). Covers assigned and unassigned tasks.
+    await ctx.scheduler.runAfter(0, internal.telegram.notify.onIssueCreated, {
+      orgId: ctx.org._id,
+      issueId,
+      actorId: ctx.user._id,
+    });
+
     return issueId;
   },
 });
