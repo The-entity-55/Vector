@@ -14,7 +14,7 @@ import { STATUSES } from "@/components/shared/issue-meta";
 import { StatusIcon } from "@/components/shared/status-icon";
 
 /**
- * Team issues list — the foundation vertical slice. Track A adds the board
+ * Team tasks list — the foundation vertical slice. Track A adds the board
  * view, filtering, and saved views on top of this route's sibling pages.
  */
 export default function TeamIssuesPage() {
@@ -53,7 +53,7 @@ export default function TeamIssuesPage() {
       <header className="flex h-12 shrink-0 items-center justify-between border-b px-4">
         <div className="flex items-center gap-2 text-sm">
           <span className="font-medium">{team.name}</span>
-          <span className="text-muted-foreground">Issues</span>
+          <span className="text-muted-foreground">Tasks</span>
         </div>
         <div className="flex items-center gap-2">
           <Tabs
@@ -77,7 +77,7 @@ export default function TeamIssuesPage() {
           </Tabs>
           <Button size="sm" variant="outline" onClick={openCreateIssue}>
             <Plus className="size-4" />
-            New issue
+            New task
           </Button>
         </div>
       </header>
@@ -85,7 +85,7 @@ export default function TeamIssuesPage() {
         {issues.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-32 text-center">
             <p className="text-sm text-muted-foreground">
-              No issues yet. Press <kbd className="rounded border bg-muted px-1 font-mono text-xs">C</kbd> to create one.
+              No tasks yet. Press <kbd className="rounded border bg-muted px-1 font-mono text-xs">C</kbd> to create one.
             </p>
           </div>
         ) : (

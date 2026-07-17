@@ -165,7 +165,7 @@ function TeamBoardContent() {
           </Tabs>
           <Button size="sm" variant="outline" onClick={openCreateIssue}>
             <Plus className="size-4" />
-            New issue
+            New task
           </Button>
         </div>
       </header>

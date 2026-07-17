@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { IssueStatus } from "@/components/shared/issue-meta";
 
 /**
- * Inline composer at the top of a board column: Enter creates an issue in
+ * Inline composer at the top of a board column: Enter creates a task in
  * that column's status and keeps the composer open for rapid entry; Escape
  * (or blurring while empty) closes it.
  */
@@ -37,7 +37,7 @@ export function QuickCreateCard({
       setTitle("");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to create issue"
+        error instanceof Error ? error.message : "Failed to create task"
       );
     } finally {
       setSubmitting(false);
@@ -49,7 +49,7 @@ export function QuickCreateCard({
       <Input
         autoFocus
         value={title}
-        placeholder="Issue title…"
+        placeholder="Task name…"
         disabled={submitting}
         onChange={(event) => setTitle(event.target.value)}
         onKeyDown={(event) => {

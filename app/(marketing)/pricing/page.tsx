@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { FeatureComparison } from "@/components/billing/feature-comparison";
-import { PricingTable } from "@/components/billing/pricing-table";
+// import { FeatureComparison } from "@/components/billing/feature-comparison";
+// import { PricingTable } from "@/components/billing/pricing-table";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -25,6 +25,11 @@ export default function PricingPage() {
         </p>
       </div>
 
+      <div className="mt-16 text-center text-sm text-muted-foreground border rounded-lg p-12 bg-muted/20">
+        Pricing plans and comparisons are temporarily unavailable.
+      </div>
+
+      {/*
       <div className="mt-10">
         <PricingTable />
       </div>
@@ -32,6 +37,7 @@ export default function PricingPage() {
       <div className="mt-16">
         <FeatureComparison />
       </div>
+      */}
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
         All prices in USD. Annual billing shows the per-month equivalent.

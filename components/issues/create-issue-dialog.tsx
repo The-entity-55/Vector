@@ -43,6 +43,7 @@ export function CreateIssueDialog({
   const params = useParams<{ orgSlug?: string }>();
   const router = useRouter();
   const teams = useQuery(api.teams.list, open ? {} : "skip");
+  const members = useQuery(api.organizations.listMembers, open ? {} : "skip");
   const createIssue = useMutation(api.issues.create);
 
   const [selectedTeamId, setSelectedTeamId] = useState<
@@ -52,6 +53,8 @@ export function CreateIssueDialog({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<IssueStatus>("todo");
   const [priority, setPriority] = useState<IssuePriority>("none");
+  const [assigneeId, setAssigneeId] = useState<Id<"users"> | undefined>();
+  const [dueDate, setDueDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Fall back to the default/first team without needing an effect.
@@ -69,13 +72,17 @@ export function CreateIssueDialog({
         description: description.trim() || undefined,
         status,
         priority,
+        assigneeId,
+        dueDate: dueDate ? new Date(`${dueDate}T12:00:00`).getTime() : undefined,
       });
-      toast.success("Issue created");
+      toast.success("Task created");
       onOpenChange(false);
       setTitle("");
       setDescription("");
       setStatus("todo");
       setPriority("none");
+      setAssigneeId(undefined);
+      setDueDate("");
       if (params.orgSlug) {
         router.push(`/${params.orgSlug}/issue/${issueId}`);
       }
@@ -93,13 +100,13 @@ export function CreateIssueDialog({
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="text-sm font-medium text-muted-foreground">
-            New issue
+            New task
           </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <Input
             autoFocus
-            placeholder="Issue title"
+            placeholder="Task name"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -131,6 +138,33 @@ export function CreateIssueDialog({
                 ))}
               </SelectContent>
             </Select>
+            <Select
+              value={assigneeId ?? "unassigned"}
+              onValueChange={(value) =>
+                setAssigneeId(
+                  value === "unassigned" ? undefined : (value as Id<"users">)
+                )
+              }
+            >
+              <SelectTrigger size="sm" className="w-auto gap-1.5">
+                <SelectValue placeholder="Assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {members?.map((member) => (
+                  <SelectItem key={member.userId} value={member.userId}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={dueDate}
+              onChange={(event) => setDueDate(event.target.value)}
+              aria-label="Due date"
+              className="h-8 w-auto text-xs"
+            />
             <Select
               value={status}
               onValueChange={(value) => setStatus(value as IssueStatus)}
@@ -174,7 +208,7 @@ export function CreateIssueDialog({
             disabled={!title.trim() || !teamId || submitting}
             onClick={() => void handleSubmit()}
           >
-            Create issue
+            Create task
           </Button>
         </div>
       </DialogContent>

@@ -6,7 +6,6 @@ import {
   updateThreadMetadata,
   vStreamArgs,
 } from "@convex-dev/agent";
-import { calculateRateLimit } from "@convex-dev/rate-limiter";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { components, internal } from "../_generated/api";
@@ -269,39 +268,14 @@ export const quota = orgQuery({
     resetsAt: v.union(v.number(), v.null()),
   }),
   handler: async (ctx) => {
-    if (!hasAiAccess(ctx.org)) {
-      return {
-        hasAccess: false,
-        unlimited: false,
-        limit: 0,
-        remaining: 0,
-        resetsAt: null,
-      };
-    }
-    if (ctx.org.plan === "enterprise") {
-      return {
-        hasAccess: true,
-        unlimited: true,
-        limit: PRO_DAILY_MESSAGE_LIMIT,
-        remaining: PRO_DAILY_MESSAGE_LIMIT,
-        resetsAt: null,
-      };
-    }
-    const { value, ts, config } = await aiRateLimiter.getValue(
-      ctx,
-      "aiMessagesDaily",
-      { key: aiMessageKey(ctx.org._id, ctx.user._id) }
-    );
-    const current = calculateRateLimit({ value, ts }, config, Date.now(), 0);
+    void ctx;
+    // All plans get unlimited AI access when pricing gating is removed.
     return {
       hasAccess: true,
-      unlimited: false,
+      unlimited: true,
       limit: PRO_DAILY_MESSAGE_LIMIT,
-      remaining: Math.max(0, Math.floor(current.value)),
-      resetsAt:
-        current.windowStart !== undefined
-          ? current.windowStart + config.period
-          : null,
+      remaining: PRO_DAILY_MESSAGE_LIMIT,
+      resetsAt: null,
     };
   },
 });

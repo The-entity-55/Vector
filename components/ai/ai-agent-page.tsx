@@ -107,7 +107,7 @@ function AiWorkspace() {
     <>
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
         <Bot className="size-4 text-primary" />
-        <h1 className="text-sm font-medium">AI Agent</h1>
+        <h1 className="text-sm font-medium">Vector Chat</h1>
         <div className="ml-auto">
           <QuotaPill quota={quota} />
         </div>
@@ -151,10 +151,10 @@ function EmptyState({
           <Sparkles className="size-5 text-primary" />
         </div>
         <div className="flex flex-col gap-1">
-          <h2 className="text-base font-semibold">Ask Vector</h2>
+          <h2 className="text-base font-semibold">Chat with Vector</h2>
           <p className="text-sm text-muted-foreground">
-            Vector knows your teams, issues, projects and cycles — and can
-            create or update issues for you.
+            Ask questions, get workspace updates, or ask Vector to help with
+            tasks, projects, and cycles.
           </p>
         </div>
         <div className="flex w-full flex-col gap-1.5">

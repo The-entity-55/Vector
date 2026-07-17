@@ -14,7 +14,7 @@ import { PriorityIcon } from "@/components/shared/priority-icon";
 import { StatusIcon } from "@/components/shared/status-icon";
 import { UserAvatar } from "@/components/shared/user-avatar";
 
-/** Parent link + sub-issue list with inline creation, under the description. */
+/** Parent link + subtask list with inline creation, under the description. */
 export function SubIssuesPanel({ issue, team }: IssueDetailSlotProps) {
   const params = useParams<{ orgSlug: string }>();
   const hierarchy = useQuery(api.issueRelations.hierarchy, {
@@ -46,7 +46,7 @@ export function SubIssuesPanel({ issue, team }: IssueDetailSlotProps) {
       setTitle("");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to create sub-issue"
+        error instanceof Error ? error.message : "Failed to create subtask"
       );
     } finally {
       setSubmitting(false);
@@ -68,7 +68,7 @@ export function SubIssuesPanel({ issue, team }: IssueDetailSlotProps) {
       {hierarchy?.parent && (
         <div className="group flex h-7 items-center gap-2 text-xs text-muted-foreground">
           <CornerUpLeft className="size-3.5 shrink-0" />
-          <span className="shrink-0">Sub-issue of</span>
+          <span className="shrink-0">Subtask of</span>
           <Link
             href={`/${params.orgSlug}/issue/${hierarchy.parent._id}`}
             className="flex min-w-0 items-center gap-1.5 hover:text-foreground"
@@ -90,7 +90,7 @@ export function SubIssuesPanel({ issue, team }: IssueDetailSlotProps) {
 
       <div className="flex h-7 items-center gap-2">
         <h3 className="text-xs font-medium text-muted-foreground">
-          Sub-issues
+          Subtasks
         </h3>
         {subIssues.length > 0 && (
           <span className="text-xs text-muted-foreground/70">
@@ -101,7 +101,7 @@ export function SubIssuesPanel({ issue, team }: IssueDetailSlotProps) {
           variant="ghost"
           size="icon"
           onClick={() => setAdding((value) => !value)}
-          aria-label="Add sub-issue"
+          aria-label="Add subtask"
           className="size-6 text-muted-foreground"
         >
           <Plus className="size-3.5" />
@@ -147,7 +147,7 @@ export function SubIssuesPanel({ issue, team }: IssueDetailSlotProps) {
             autoFocus
             value={title}
             disabled={submitting}
-            placeholder="Sub-issue title… (Enter to create)"
+            placeholder="Subtask name… (Enter to create)"
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {

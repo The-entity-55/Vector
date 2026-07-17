@@ -43,6 +43,7 @@ type IssuePatch = {
   priority?: IssuePriority;
   assigneeId?: Id<"users"> | null;
   estimate?: number | null;
+  dueDate?: number | null;
 };
 
 export function IssueProperties({ issue }: { issue: Doc<"issues"> }) {
@@ -146,6 +147,22 @@ export function IssueProperties({ issue }: { issue: Doc<"issues"> }) {
             ))}
           </SelectContent>
         </Select>
+      </PropertyRow>
+
+      <PropertyRow label="Due date">
+        <input
+          type="date"
+          value={issue.dueDate ? new Date(issue.dueDate).toISOString().slice(0, 10) : ""}
+          onChange={(event) =>
+            update({
+              dueDate: event.target.value
+                ? new Date(`${event.target.value}T12:00:00`).getTime()
+                : null,
+            })
+          }
+          className="h-8 w-36 rounded-md bg-transparent px-2 text-xs outline-none ring-ring focus-visible:ring-1"
+          aria-label="Due date"
+        />
       </PropertyRow>
     </div>
   );

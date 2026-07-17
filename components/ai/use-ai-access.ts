@@ -7,9 +7,9 @@ import { useAuth } from "@clerk/nextjs";
  * Convex (`hasAiAccess`) is the authoritative enforcement.
  */
 export function useAiAccess(): { isLoaded: boolean; hasAccess: boolean } {
-  const { isLoaded, has } = useAuth();
+  const { isLoaded } = useAuth();
   return {
     isLoaded,
-    hasAccess: isLoaded ? (has?.({ feature: "ai_agent" }) ?? false) : false,
+    hasAccess: isLoaded ? true : false,
   };
 }

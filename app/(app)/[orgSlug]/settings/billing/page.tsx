@@ -3,9 +3,9 @@
 import { useQuery } from "convex/react";
 import { Loader2 } from "lucide-react";
 import { api } from "@/convex/_generated/api";
-import { CurrentPlanCard } from "@/components/billing/current-plan-card";
-import { UpgradeOptions } from "@/components/billing/upgrade-options";
-import { UsageCard } from "@/components/billing/usage-card";
+// import { CurrentPlanCard } from "@/components/billing/current-plan-card";
+// import { UpgradeOptions } from "@/components/billing/upgrade-options";
+// import { UsageCard } from "@/components/billing/usage-card";
 
 /**
  * Org billing settings: current-plan summary with Clerk's subscription
@@ -38,9 +38,14 @@ export default function BillingSettingsPage() {
           Manage the plan and subscription for this workspace.
         </p>
       </div>
+      <div className="rounded-lg border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+        Billing settings are temporarily unavailable.
+      </div>
+      {/*
       <CurrentPlanCard org={org} />
       <UsageCard org={org} />
       <UpgradeOptions org={org} />
+      */}
     </>
   );
 }

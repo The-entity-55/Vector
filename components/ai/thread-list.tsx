@@ -34,7 +34,7 @@ export function ThreadList({
           onClick={onNew}
         >
           <Plus className="size-3.5" />
-          New conversation
+          New chat
         </Button>
       </div>
       <ScrollArea className="flex-1 px-2 pb-2">
@@ -58,7 +58,7 @@ export function ThreadList({
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label="Delete conversation"
+                aria-label="Delete chat"
                 className="size-5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                 onClick={() => onDelete(thread.threadId)}
               >
@@ -68,7 +68,7 @@ export function ThreadList({
           ))}
           {threads !== undefined && threads.length === 0 && (
             <p className="px-2 py-3 text-xs text-muted-foreground">
-              No conversations yet.
+              No chats yet.
             </p>
           )}
         </div>

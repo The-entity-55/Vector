@@ -12,7 +12,8 @@ export const FREE_PLAN_LIMITS = {
 } as const;
 
 export function isPaidPlan(org: Doc<"organizations">): boolean {
-  return org.plan === "pro" || org.plan === "enterprise";
+  void org;
+  return true;
 }
 
 export async function assertCanCreateIssue(
@@ -70,5 +71,6 @@ export async function assertUnderSeatLimit(
 }
 
 export function hasAiAccess(org: Doc<"organizations">): boolean {
-  return isPaidPlan(org);
+  void org;
+  return true;
 }
