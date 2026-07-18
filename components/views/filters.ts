@@ -14,7 +14,7 @@ import {
 /** Sentinel used in `assignees` to match issues with no assignee. */
 export const UNASSIGNED_FILTER = "unassigned";
 
-export type DisplayMode = "board" | "list";
+export type DisplayMode = "board" | "list" | "calendar";
 
 export type IssueFilters = {
   statuses: IssueStatus[];
@@ -80,7 +80,10 @@ export function filtersFromSearchParams(params: ParamsLike): IssueFilters {
 }
 
 export function displayFromSearchParams(params: ParamsLike): DisplayMode {
-  return params.get("view") === "list" ? "list" : "board";
+  const view = params.get("view");
+  if (view === "list") return "list";
+  if (view === "calendar") return "calendar";
+  return "board";
 }
 
 /** Query string (no leading "?") encoding filters + display mode. */
@@ -91,6 +94,8 @@ export function toQueryString(
   const params = new URLSearchParams();
   if (display === "list") {
     params.set("view", "list");
+  } else if (display === "calendar") {
+    params.set("view", "calendar");
   }
   if (filters.statuses.length > 0) {
     params.set("status", filters.statuses.join(","));

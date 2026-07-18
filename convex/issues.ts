@@ -154,17 +154,18 @@ export const create = orgMutation({
       actorId: ctx.user._id,
     });
 
-    // Mirror the due date onto the assignee's Google Calendar (no-op if they
-    // haven't connected Google / granted Calendar). Needs a due date and an
-    // assignee — an unassigned task has no calendar to write to.
+    // Mirror the due date onto the assignee's "Vector Tasks" Google Calendar
+    // (no-op if they haven't connected Google / granted Calendar scope).
+    // Upsert is idempotent via extendedProperties.private.vectorIssueId.
     if (args.dueDate !== undefined && args.assigneeId !== undefined) {
       const assignee = await ctx.db.get(args.assigneeId);
       if (assignee) {
         await ctx.scheduler.runAfter(
           0,
-          internal.google.calendar.createDueDateEvent,
+          internal.google.calendar.upsertDueDateEvent,
           {
             clerkUserId: assignee.clerkId,
+            issueId,
             identifier: `${team.key}-${number}`,
             title: args.title.trim(),
             description: args.description,
@@ -271,16 +272,9 @@ export const update = orgMutation({
       });
     }
 
-    // Mirror a newly-set / changed due date onto the assignee's Google Calendar.
-    // The effective assignee is the new one (if being reassigned) or the current
-    // one. Fires only when the due date actually changes to a real date, to
-    // avoid duplicate events on unrelated edits (the frozen schema has nowhere
-    // to store the created event id, so we can't update an existing event yet).
-    const dueDateChanged =
-      args.dueDate !== undefined &&
-      args.dueDate !== null &&
-      args.dueDate !== issue.dueDate;
-    if (dueDateChanged) {
+    // Mirror a newly-set / changed due date onto the assignee's "Vector Tasks"
+    // Google Calendar. Upsert is idempotent so we fire on any due date write.
+    if (args.dueDate !== undefined && args.dueDate !== null) {
       const effectiveAssigneeId =
         args.assigneeId !== undefined
           ? args.assigneeId ?? undefined
@@ -291,9 +285,10 @@ export const update = orgMutation({
         if (assignee && team) {
           await ctx.scheduler.runAfter(
             0,
-            internal.google.calendar.createDueDateEvent,
+            internal.google.calendar.upsertDueDateEvent,
             {
               clerkUserId: assignee.clerkId,
+              issueId: issue._id,
               identifier: `${team.key}-${issue.number}`,
               title: updates.title ?? issue.title,
               description: updates.description ?? issue.description,

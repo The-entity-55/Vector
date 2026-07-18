@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
  *
  * The scope strings must match those configured on the Clerk Google connection.
  */
-const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
 const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const REQUIRED_SCOPES = [CALENDAR_SCOPE, GMAIL_SCOPE];
 
