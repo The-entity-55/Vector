@@ -14,7 +14,7 @@ import {
 /** Sentinel used in `assignees` to match issues with no assignee. */
 export const UNASSIGNED_FILTER = "unassigned";
 
-export type DisplayMode = "board" | "list" | "calendar";
+export type DisplayMode = "board" | "list" | "calendar" | "timeline";
 
 export type IssueFilters = {
   statuses: IssueStatus[];
@@ -83,6 +83,7 @@ export function displayFromSearchParams(params: ParamsLike): DisplayMode {
   const view = params.get("view");
   if (view === "list") return "list";
   if (view === "calendar") return "calendar";
+  if (view === "timeline") return "timeline";
   return "board";
 }
 
@@ -96,6 +97,8 @@ export function toQueryString(
     params.set("view", "list");
   } else if (display === "calendar") {
     params.set("view", "calendar");
+  } else if (display === "timeline") {
+    params.set("view", "timeline");
   }
   if (filters.statuses.length > 0) {
     params.set("status", filters.statuses.join(","));
@@ -186,7 +189,12 @@ export function parseSavedView(raw: string): SavedViewPayload | null {
     return {
       v: 1,
       teamId: data.teamId,
-      display: data.display === "list" ? "list" : "board",
+      display:
+        data.display === "list" ||
+        data.display === "calendar" ||
+        data.display === "timeline"
+          ? data.display
+          : "board",
       filters: sanitizeFilters(data.filters),
     };
   } catch {

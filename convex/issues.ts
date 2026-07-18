@@ -23,6 +23,8 @@ export const issueShape = {
   cycleId: v.optional(v.id("cycles")),
   parentIssueId: v.optional(v.id("issues")),
   estimate: v.optional(v.number()),
+  startDate: v.optional(v.number()),
+  sectionId: v.optional(v.id("sections")),
   dueDate: v.optional(v.number()),
   sortOrder: v.number(),
   embedding: v.optional(v.array(v.float64())),
@@ -99,6 +101,8 @@ export const create = orgMutation({
     cycleId: v.optional(v.id("cycles")),
     parentIssueId: v.optional(v.id("issues")),
     estimate: v.optional(v.number()),
+    startDate: v.optional(v.number()),
+    sectionId: v.optional(v.id("sections")),
     dueDate: v.optional(v.number()),
   },
   returns: v.id("issues"),
@@ -135,6 +139,8 @@ export const create = orgMutation({
       cycleId: args.cycleId,
       parentIssueId: args.parentIssueId,
       estimate: args.estimate,
+      startDate: args.startDate,
+      sectionId: args.sectionId,
       dueDate: args.dueDate,
       sortOrder,
     });
@@ -190,6 +196,8 @@ export const update = orgMutation({
     projectId: v.optional(v.union(v.id("projects"), v.null())),
     cycleId: v.optional(v.union(v.id("cycles"), v.null())),
     estimate: v.optional(v.union(v.number(), v.null())),
+    startDate: v.optional(v.union(v.number(), v.null())),
+    sectionId: v.optional(v.union(v.id("sections"), v.null())),
     dueDate: v.optional(v.union(v.number(), v.null())),
     sortOrder: v.optional(v.number()),
   },
@@ -236,6 +244,12 @@ export const update = orgMutation({
     }
     if (args.estimate !== undefined) {
       updates.estimate = args.estimate ?? undefined;
+    }
+    if (args.startDate !== undefined) {
+      updates.startDate = args.startDate ?? undefined;
+    }
+    if (args.sectionId !== undefined) {
+      updates.sectionId = args.sectionId ?? undefined;
     }
     if (args.dueDate !== undefined) {
       updates.dueDate = args.dueDate ?? undefined;
@@ -313,6 +327,22 @@ export const remove = orgMutation({
       .withIndex("by_issue", (q) => q.eq("issueId", issue._id))
       .collect();
     for (const link of labelLinks) {
+      await ctx.db.delete(link._id);
+    }
+
+    // Clean up custom field values and multi-home links for this issue.
+    const fieldValues = await ctx.db
+      .query("issueCustomFieldValues")
+      .withIndex("by_issue", (q) => q.eq("issueId", issue._id))
+      .collect();
+    for (const value of fieldValues) {
+      await ctx.db.delete(value._id);
+    }
+    const projectLinks = await ctx.db
+      .query("issueProjects")
+      .withIndex("by_issue", (q) => q.eq("issueId", issue._id))
+      .collect();
+    for (const link of projectLinks) {
       await ctx.db.delete(link._id);
     }
 

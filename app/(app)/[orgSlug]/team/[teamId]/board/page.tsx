@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { CalendarDays, Columns3, List, Loader2, Plus } from "lucide-react";
+import { CalendarDays, Columns3, GanttChartSquare, List, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import {
   useParams,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCommands } from "@/components/commands/command-provider";
 import { CalendarView } from "@/components/calendar/calendar-view";
+import { TimelineView } from "@/components/timeline/timeline-view";
 import { BoardView } from "@/components/board/board-view";
 import { CardAssignee, CardLabel } from "@/components/board/board-card";
 import { FilterBar } from "@/components/views/filter-bar";
@@ -65,6 +66,7 @@ function TeamBoardContent() {
   const labelRows = useQuery(api.views.teamIssueLabels, { teamId });
   const members = useQuery(api.organizations.listMembers);
   const orgLabels = useQuery(api.labels.list);
+  const dependencies = useQuery(api.timeline.dependencies, { teamId });
 
   const filters = useMemo(
     () => filtersFromSearchParams(searchParams),
@@ -137,7 +139,13 @@ function TeamBoardContent() {
           </Link>
           <span className="text-muted-foreground">·</span>
           <span className="font-medium">
-            {display === "board" ? "Board" : display === "list" ? "List" : "Calendar"}
+            {display === "board"
+              ? "Board"
+              : display === "list"
+                ? "List"
+                : display === "calendar"
+                  ? "Calendar"
+                  : "Timeline"}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -165,6 +173,10 @@ function TeamBoardContent() {
               <TabsTrigger value="calendar" className="h-6 gap-1 px-2 text-xs">
                 <CalendarDays className="size-3.5" />
                 Calendar
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="h-6 gap-1 px-2 text-xs">
+                <GanttChartSquare className="size-3.5" />
+                Timeline
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -196,6 +208,13 @@ function TeamBoardContent() {
       ) : display === "calendar" ? (
         <CalendarView
           issues={filteredIssues}
+          teamKey={team.key}
+          orgSlug={params.orgSlug}
+        />
+      ) : display === "timeline" ? (
+        <TimelineView
+          issues={filteredIssues}
+          dependencies={dependencies ?? []}
           teamKey={team.key}
           orgSlug={params.orgSlug}
         />

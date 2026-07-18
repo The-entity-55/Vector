@@ -125,6 +125,14 @@ export function SubIssuesPanel({ issue, team }: IssueDetailSlotProps) {
                   {sub.identifier}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{sub.title}</span>
+                {sub.dueDate != null && (
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {new Date(sub.dueDate).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                )}
                 {sub.priority !== "none" && (
                   <PriorityIcon priority={sub.priority} />
                 )}

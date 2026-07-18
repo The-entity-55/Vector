@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { CalendarDays, Columns3, List, Loader2, Plus } from "lucide-react";
+import { CalendarDays, Columns3, GanttChartSquare, List, Loader2, Plus } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -65,6 +65,10 @@ export default function TeamIssuesPage() {
                 router.push(
                   `/${params.orgSlug}/team/${teamId}/board?view=calendar`
                 );
+              } else if (value === "timeline") {
+                router.push(
+                  `/${params.orgSlug}/team/${teamId}/board?view=timeline`
+                );
               }
             }}
           >
@@ -80,6 +84,10 @@ export default function TeamIssuesPage() {
               <TabsTrigger value="calendar" className="h-6 gap-1 px-2 text-xs">
                 <CalendarDays className="size-3.5" />
                 Calendar
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="h-6 gap-1 px-2 text-xs">
+                <GanttChartSquare className="size-3.5" />
+                Timeline
               </TabsTrigger>
             </TabsList>
           </Tabs>
