@@ -6,26 +6,24 @@ import { GoogleAuthError, hasScope } from "./api";
 /**
  * Google Calendar integration.
  *
- * A pure `fetch` helper over the Calendar REST API (mirrors `telegram/api.ts`),
- * plus an internal action that resolves a user's Google token (via
- * `google/auth.ts`) and creates an event on their primary calendar. Callers pass
- * the Clerk user id they resolved from an authenticated/ internal context.
- *
- * Calendar API reference:
- * https://developers.google.com/workspace/calendar/api/v3/reference/events/insert
+ * Helpers over the Calendar REST API. All event writes stamp
+ * `extendedProperties.private.vectorIssueId` so the reverse-sync poller can
+ * recognise app-owned events and never re-import them as duplicate tasks.
  */
 
 const CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3";
 
-/** Scope Clerk must have granted for these calls to succeed. */
-export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+/** Full calendar management scope (supersedes the old .events scope). */
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
 
-/** Minimal Google Calendar event body (all-day or timed). */
 export type CalendarEvent = {
   summary: string;
   description?: string;
   start: { date?: string; dateTime?: string; timeZone?: string };
   end: { date?: string; dateTime?: string; timeZone?: string };
+  extendedProperties?: {
+    private?: Record<string, string>;
+  };
 };
 
 type CalendarEventResult = {
@@ -33,16 +31,98 @@ type CalendarEventResult = {
   htmlLink: string;
 };
 
+type CalendarEventItem = {
+  id?: string;
+  htmlLink?: string;
+  status?: string;
+  summary?: string;
+  start?: { date?: string; dateTime?: string };
+  extendedProperties?: { private?: Record<string, string> };
+};
+
 /**
- * Insert an event on a calendar (defaults to the user's primary). Pure helper:
- * the access token is always passed in, never read here.
+ * Find or create the "Vector Tasks" calendar on the user's account.
+ * Returns the calendar id (not the summary).
  */
-export async function insertCalendarEvent(
+export async function resolveVectorCalendarId(
+  accessToken: string
+): Promise<string> {
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+
+  const listRes = await fetch(`${CALENDAR_API_BASE}/users/me/calendarList`, {
+    headers,
+  });
+  if (!listRes.ok) {
+    const detail = await listRes.text();
+    throw new GoogleAuthError(
+      `calendarList fetch failed (${listRes.status}): ${detail.slice(0, 200)}`,
+      listRes.status === 401 || listRes.status === 403
+    );
+  }
+  const listBody = (await listRes.json()) as {
+    items?: Array<{ id?: string; summary?: string }>;
+  };
+  const existing = listBody.items?.find(
+    (c) => c.summary === "Vector Tasks"
+  );
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  // Create it.
+  const createRes = await fetch(`${CALENDAR_API_BASE}/calendars`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ summary: "Vector Tasks" }),
+  });
+  if (!createRes.ok) {
+    const detail = await createRes.text();
+    throw new GoogleAuthError(
+      `calendar create failed (${createRes.status}): ${detail.slice(0, 200)}`
+    );
+  }
+  const created = (await createRes.json()) as { id?: string };
+  if (!created.id) {
+    throw new GoogleAuthError("Calendar create returned no id");
+  }
+  return created.id;
+}
+
+/**
+ * Search for an existing calendar event that was created for a specific issue.
+ * Uses `privateExtendedProperty` filter so it only matches app-stamped events.
+ */
+export async function findEventByIssueId(
   accessToken: string,
-  event: CalendarEvent,
-  calendarId = "primary"
+  calendarId: string,
+  issueId: string
+): Promise<CalendarEventItem | null> {
+  const params = new URLSearchParams({
+    privateExtendedProperty: `vectorIssueId=${issueId}`,
+    maxResults: "1",
+    singleEvents: "true",
+  });
+  const res = await fetch(
+    `${CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) {
+    return null;
+  }
+  const body = (await res.json()) as { items?: CalendarEventItem[] };
+  return body.items?.[0] ?? null;
+}
+
+/** Insert an event (used for first-time creation). */
+async function insertCalendarEvent(
+  accessToken: string,
+  calendarId: string,
+  event: CalendarEvent
 ): Promise<CalendarEventResult> {
-  const response = await fetch(
+  const res = await fetch(
     `${CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events`,
     {
       method: "POST",
@@ -53,18 +133,43 @@ export async function insertCalendarEvent(
       body: JSON.stringify(event),
     }
   );
-  if (!response.ok) {
-    const detail = await response.text();
+  if (!res.ok) {
+    const detail = await res.text();
     throw new GoogleAuthError(
-      `Calendar event insert failed (${response.status}): ${detail.slice(0, 200)}`,
-      // 401/403 typically mean the token lacks the scope or was revoked.
-      response.status === 401 || response.status === 403
+      `Calendar event insert failed (${res.status}): ${detail.slice(0, 200)}`,
+      res.status === 401 || res.status === 403
     );
   }
-  const body = (await response.json()) as {
-    id?: string;
-    htmlLink?: string;
-  };
+  const body = (await res.json()) as { id?: string; htmlLink?: string };
+  return { id: body.id ?? "", htmlLink: body.htmlLink ?? "" };
+}
+
+/** Patch an existing event (update summary/dates only). */
+async function patchCalendarEvent(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  patch: Partial<CalendarEvent>
+): Promise<CalendarEventResult> {
+  const res = await fetch(
+    `${CALENDAR_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(patch),
+    }
+  );
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new GoogleAuthError(
+      `Calendar event patch failed (${res.status}): ${detail.slice(0, 200)}`,
+      res.status === 401 || res.status === 403
+    );
+  }
+  const body = (await res.json()) as { id?: string; htmlLink?: string };
   return { id: body.id ?? "", htmlLink: body.htmlLink ?? "" };
 }
 
@@ -80,15 +185,15 @@ function digestOffsetMinutes(): number {
 }
 
 /**
- * Create an all-day Calendar event for a task's due date on the user's primary
- * calendar. No-ops (returns null) when Google isn't connected or the calendar
- * scope wasn't granted, so a missing connection never breaks task creation.
- * The date is resolved in the workspace-local timezone (DIGEST_UTC_OFFSET_MINUTES,
- * default IST) so a due date doesn't land on the wrong day.
+ * Upsert an all-day Calendar event for a task's due date on the user's
+ * "Vector Tasks" calendar. Creates on first call; patches on subsequent calls
+ * (idempotent via extendedProperties.private.vectorIssueId). No-ops when
+ * Google isn't connected or the calendar scope wasn't granted.
  */
-export const createDueDateEvent = internalAction({
+export const upsertDueDateEvent = internalAction({
   args: {
     clerkUserId: v.string(),
+    issueId: v.string(),
     identifier: v.string(),
     title: v.string(),
     description: v.optional(v.string()),
@@ -106,29 +211,49 @@ export const createDueDateEvent = internalAction({
       });
     } catch (error) {
       if (error instanceof GoogleAuthError && error.reconnectRequired) {
-        return null; // Not connected — silently skip.
+        return null;
       }
       throw error;
     }
 
     if (!hasScope(tokenInfo, CALENDAR_SCOPE)) {
-      // User connected Google but not the calendar scope; skip rather than 403.
       return null;
     }
 
     const offset = digestOffsetMinutes();
     const date = toLocalDateString(args.dueDate, offset);
-    // All-day events use an exclusive end date (next day).
     const endDate = toLocalDateString(
       args.dueDate + 24 * 60 * 60 * 1000,
       offset
     );
 
-    return await insertCalendarEvent(tokenInfo.token, {
+    const calendarId = await resolveVectorCalendarId(tokenInfo.token);
+    const existing = await findEventByIssueId(
+      tokenInfo.token,
+      calendarId,
+      args.issueId
+    );
+
+    const eventBody: CalendarEvent = {
       summary: `${args.identifier}: ${args.title}`,
       description: args.description,
       start: { date },
       end: { date: endDate },
-    });
+      extendedProperties: {
+        private: {
+          vectorIssueId: args.issueId,
+        },
+      },
+    };
+
+    if (existing?.id) {
+      return await patchCalendarEvent(
+        tokenInfo.token,
+        calendarId,
+        existing.id,
+        eventBody
+      );
+    }
+    return await insertCalendarEvent(tokenInfo.token, calendarId, eventBody);
   },
 });

@@ -25,6 +25,7 @@ import type * as digest from "../digest.js";
 import type * as google_api from "../google/api.js";
 import type * as google_auth from "../google/auth.js";
 import type * as google_calendar from "../google/calendar.js";
+import type * as google_sync from "../google/sync.js";
 import type * as http from "../http.js";
 import type * as issueRelations from "../issueRelations.js";
 import type * as issues from "../issues.js";
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   "google/api": typeof google_api;
   "google/auth": typeof google_auth;
   "google/calendar": typeof google_calendar;
+  "google/sync": typeof google_sync;
   http: typeof http;
   issueRelations: typeof issueRelations;
   issues: typeof issues;

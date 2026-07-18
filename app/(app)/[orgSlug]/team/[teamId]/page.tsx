@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Columns3, List, Loader2, Plus } from "lucide-react";
+import { CalendarDays, Columns3, List, Loader2, Plus } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -61,6 +61,10 @@ export default function TeamIssuesPage() {
             onValueChange={(value) => {
               if (value === "board") {
                 router.push(`/${params.orgSlug}/team/${teamId}/board`);
+              } else if (value === "calendar") {
+                router.push(
+                  `/${params.orgSlug}/team/${teamId}/board?view=calendar`
+                );
               }
             }}
           >
@@ -72,6 +76,10 @@ export default function TeamIssuesPage() {
               <TabsTrigger value="list" className="h-6 gap-1 px-2 text-xs">
                 <List className="size-3.5" />
                 List
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="h-6 gap-1 px-2 text-xs">
+                <CalendarDays className="size-3.5" />
+                Calendar
               </TabsTrigger>
             </TabsList>
           </Tabs>

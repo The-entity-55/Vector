@@ -60,4 +60,14 @@ crons.daily(
   { slot: "evening" }
 );
 
+// Poll every connected user's "Vector Tasks" Google Calendar for new/changed
+// events and sync them into the app. Interval overlaps are handled in the
+// action itself (10-min lookback window vs 5-min fire cadence).
+crons.interval(
+  "calendar-google-poll",
+  { minutes: 5 },
+  internal.google.sync.pollAllCalendars,
+  {}
+);
+
 export default crons;

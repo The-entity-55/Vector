@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Columns3, List, Loader2, Plus } from "lucide-react";
+import { CalendarDays, Columns3, List, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import {
   useParams,
@@ -15,6 +15,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCommands } from "@/components/commands/command-provider";
+import { CalendarView } from "@/components/calendar/calendar-view";
 import { BoardView } from "@/components/board/board-view";
 import { CardAssignee, CardLabel } from "@/components/board/board-card";
 import { FilterBar } from "@/components/views/filter-bar";
@@ -136,7 +137,7 @@ function TeamBoardContent() {
           </Link>
           <span className="text-muted-foreground">·</span>
           <span className="font-medium">
-            {display === "board" ? "Board" : "List"}
+            {display === "board" ? "Board" : display === "list" ? "List" : "Calendar"}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -160,6 +161,10 @@ function TeamBoardContent() {
               <TabsTrigger value="list" className="h-6 gap-1 px-2 text-xs">
                 <List className="size-3.5" />
                 List
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="h-6 gap-1 px-2 text-xs">
+                <CalendarDays className="size-3.5" />
+                Calendar
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -187,6 +192,12 @@ function TeamBoardContent() {
           orgSlug={params.orgSlug}
           labelsByIssue={labelsByIssue}
           assigneesById={assigneesById}
+        />
+      ) : display === "calendar" ? (
+        <CalendarView
+          issues={filteredIssues}
+          teamKey={team.key}
+          orgSlug={params.orgSlug}
         />
       ) : (
         <FilteredIssueList
