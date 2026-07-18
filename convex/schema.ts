@@ -49,6 +49,23 @@ export const issueRelationTypeValidator = v.union(
   v.literal("duplicate_of")
 );
 
+/** Custom field data types (Asana-style project fields). */
+export const customFieldTypeValidator = v.union(
+  v.literal("text"),
+  v.literal("number"),
+  v.literal("date"),
+  v.literal("select")
+);
+
+/** Goal / OKR progress lifecycle. */
+export const goalStatusValidator = v.union(
+  v.literal("on_track"),
+  v.literal("at_risk"),
+  v.literal("off_track"),
+  v.literal("achieved"),
+  v.literal("canceled")
+);
+
 export default defineSchema({
   // ── Synced from Clerk via webhooks ─────────────────────────────────────
   users: defineTable({
@@ -108,6 +125,10 @@ export default defineSchema({
     cycleId: v.optional(v.id("cycles")),
     parentIssueId: v.optional(v.id("issues")),
     estimate: v.optional(v.number()),
+    /** Start date as ms since epoch — pairs with dueDate for Timeline/Gantt. */
+    startDate: v.optional(v.number()),
+    /** Section within a team/project board (Asana-style grouping). */
+    sectionId: v.optional(v.id("sections")),
     /** Due date as ms since epoch */
     dueDate: v.optional(v.number()),
     /** Fractional ranking for board/list ordering */
@@ -122,6 +143,7 @@ export default defineSchema({
     .index("by_assignee", ["orgId", "assigneeId"])
     .index("by_project", ["projectId"])
     .index("by_cycle", ["cycleId"])
+    .index("by_section", ["sectionId"])
     .index("by_parent", ["parentIssueId"])
     .searchIndex("search_title", {
       searchField: "title",
@@ -224,6 +246,94 @@ export default defineSchema({
   })
     .index("by_org", ["orgId"])
     .index("by_creator", ["creatorId"]),
+
+  // ── Sections (Asana-style ordered groupings within a team) ─────────────
+  sections: defineTable({
+    orgId: v.id("organizations"),
+    teamId: v.id("teams"),
+    name: v.string(),
+    /** Fractional ranking for ordering sections within a team. */
+    sortOrder: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_team", ["teamId"]),
+
+  // ── Custom fields ──────────────────────────────────────────────────────
+  // Per-org field definitions; values live in issueCustomFieldValues.
+  customFieldDefs: defineTable({
+    orgId: v.id("organizations"),
+    name: v.string(),
+    type: customFieldTypeValidator,
+    /** Options for `select` fields; ignored otherwise. */
+    options: v.optional(v.array(v.string())),
+    sortOrder: v.number(),
+  }).index("by_org", ["orgId"]),
+
+  issueCustomFieldValues: defineTable({
+    orgId: v.id("organizations"),
+    issueId: v.id("issues"),
+    fieldId: v.id("customFieldDefs"),
+    /** Serialized value; interpreted by the field's `type`. */
+    value: v.string(),
+  })
+    .index("by_issue", ["issueId"])
+    .index("by_field", ["fieldId"])
+    .index("by_issue_and_field", ["issueId", "fieldId"]),
+
+  // ── Milestones (project timeline markers) ──────────────────────────────
+  milestones: defineTable({
+    orgId: v.id("organizations"),
+    projectId: v.id("projects"),
+    name: v.string(),
+    /** Target date as ms since epoch. */
+    targetDate: v.number(),
+    completed: v.boolean(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_project", ["projectId"]),
+
+  // ── Goals / OKRs ───────────────────────────────────────────────────────
+  goals: defineTable({
+    orgId: v.id("organizations"),
+    name: v.string(),
+    description: v.optional(v.string()),
+    ownerId: v.optional(v.id("users")),
+    status: goalStatusValidator,
+    /** Manual progress 0–100; UI may also roll up from linked projects. */
+    progress: v.number(),
+    targetDate: v.optional(v.number()),
+  }).index("by_org", ["orgId"]),
+
+  goalProjects: defineTable({
+    goalId: v.id("goals"),
+    projectId: v.id("projects"),
+  })
+    .index("by_goal", ["goalId"])
+    .index("by_project", ["projectId"]),
+
+  // ── Forms (intake → auto-creates an issue) ─────────────────────────────
+  forms: defineTable({
+    orgId: v.id("organizations"),
+    teamId: v.id("teams"),
+    creatorId: v.id("users"),
+    name: v.string(),
+    description: v.optional(v.string()),
+    /** Public slug used for the shareable intake URL. */
+    slug: v.string(),
+    active: v.boolean(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_slug", ["slug"]),
+
+  // ── Multi-homing (a task belonging to additional projects) ─────────────
+  // Additive: issues.projectId stays the primary project; these are extras.
+  issueProjects: defineTable({
+    orgId: v.id("organizations"),
+    issueId: v.id("issues"),
+    projectId: v.id("projects"),
+  })
+    .index("by_issue", ["issueId"])
+    .index("by_project", ["projectId"]),
 
   // ── Telegram integration ───────────────────────────────────────────────
   // Per-org Telegram bot connection. botToken/webhookSecret are secrets read

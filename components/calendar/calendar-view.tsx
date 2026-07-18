@@ -46,11 +46,11 @@ export function CalendarView({
   orgSlug: string;
 }) {
   const router = useRouter();
-  const now = new Date();
+  const [now] = useState(() => new Date());
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
 
-  const todayLocal = toLocalDate(Date.now());
+  const todayLocal = toLocalDate(now.getTime());
 
   // Build a map: "YYYY-M-D" -> issues[]
   const byDay = new Map<string, Doc<"issues">[]>();

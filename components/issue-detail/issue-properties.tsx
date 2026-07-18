@@ -43,6 +43,7 @@ type IssuePatch = {
   priority?: IssuePriority;
   assigneeId?: Id<"users"> | null;
   estimate?: number | null;
+  startDate?: number | null;
   dueDate?: number | null;
 };
 
@@ -147,6 +148,22 @@ export function IssueProperties({ issue }: { issue: Doc<"issues"> }) {
             ))}
           </SelectContent>
         </Select>
+      </PropertyRow>
+
+      <PropertyRow label="Start date">
+        <input
+          type="date"
+          value={issue.startDate ? new Date(issue.startDate).toISOString().slice(0, 10) : ""}
+          onChange={(event) =>
+            update({
+              startDate: event.target.value
+                ? new Date(`${event.target.value}T12:00:00`).getTime()
+                : null,
+            })
+          }
+          className="h-8 w-36 rounded-md bg-transparent px-2 text-xs outline-none ring-ring focus-visible:ring-1"
+          aria-label="Start date"
+        />
       </PropertyRow>
 
       <PropertyRow label="Due date">

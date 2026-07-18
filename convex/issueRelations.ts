@@ -35,6 +35,7 @@ const issueSummaryValidator = v.object({
   status: issueStatusValidator,
   priority: issuePriorityValidator,
   assigneeId: v.optional(v.id("users")),
+  dueDate: v.optional(v.number()),
 });
 
 type IssueSummary = {
@@ -44,6 +45,7 @@ type IssueSummary = {
   status: Doc<"issues">["status"];
   priority: Doc<"issues">["priority"];
   assigneeId?: Id<"users">;
+  dueDate?: number;
 };
 
 type TeamCache = Map<Id<"teams">, Doc<"teams"> | null>;
@@ -64,6 +66,7 @@ async function summarizeIssue(
     status: issue.status,
     priority: issue.priority,
     assigneeId: issue.assigneeId,
+    dueDate: issue.dueDate,
   };
 }
 
