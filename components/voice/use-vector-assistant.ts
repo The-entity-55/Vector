@@ -14,6 +14,7 @@
 // in the "unsupported" state and the assistant simply never arms.
 
 import { useAction } from "convex/react";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -77,6 +78,19 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
 export function useVectorAssistant() {
   const requestReply = useAction(api.voice.reply);
   const requestSpeech = useAction(api.voice.speak);
+
+  // Router + current org slug let Vector navigate the app when it returns a
+  // navigation directive. Kept in refs so the async finalize callback reads the
+  // latest values without being re-created on every route change. The refs are
+  // synced in an effect (never mutated during render).
+  const router = useRouter();
+  const params = useParams<{ orgSlug: string }>();
+  const routerRef = useRef(router);
+  const orgSlugRef = useRef(params.orgSlug);
+  useEffect(() => {
+    routerRef.current = router;
+    orgSlugRef.current = params.orgSlug;
+  }, [router, params.orgSlug]);
 
   const [state, setState] = useState<VectorState>("listening");
 
@@ -203,6 +217,17 @@ export function useVectorAssistant() {
         return;
       }
       const reply = replyResult.text.trim();
+
+      // Vector asked to navigate: push the route now (relative path is scoped to
+      // the current org). Speaking the confirmation continues below.
+      if (replyResult.navigate) {
+        const slug = orgSlugRef.current;
+        if (slug) {
+          const target = `/${slug}${replyResult.navigate.path}`;
+          console.log("[vector] navigating to", target);
+          routerRef.current.push(target);
+        }
+      }
 
       historyRef.current = [
         ...history,

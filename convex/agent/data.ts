@@ -195,6 +195,23 @@ export const listTeamsForOrg = internalQuery({
   },
 });
 
+/**
+ * Resolve a team key (e.g. "ENG") to its id for voice navigation. Org-scoped,
+ * so it can never resolve into another workspace's team.
+ */
+export const teamIdByKey = internalQuery({
+  args: { orgId: v.id("organizations"), teamKey: v.string() },
+  returns: v.object({
+    teamId: v.id("teams"),
+    name: v.string(),
+    key: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const team = await getOrgTeamByKey(ctx, args.orgId, args.teamKey);
+    return { teamId: team._id, name: team.name, key: team.key };
+  },
+});
+
 export const listMembersForOrg = internalQuery({
   args: { orgId: v.id("organizations") },
   returns: v.array(
