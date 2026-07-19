@@ -17,9 +17,9 @@ export default function MarketingLayout({
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <span className="flex size-6 items-center justify-center rounded bg-primary text-xs font-bold text-primary-foreground">
-              V
+              P
             </span>
-            Vector
+            Perplexed
           </Link>
           <nav className="flex items-center gap-2">
             <Button variant="ghost" size="sm" asChild>

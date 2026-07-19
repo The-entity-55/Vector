@@ -19,7 +19,7 @@ export function FeaturesKeyboard() {
           <SectionHeading
             eyebrow="04 · Keyboard-first"
             title="Your hands never leave the keyboard"
-            lede="Everything in Vector is a command. One palette, single-key shortcuts, and zero context switches between thinking and doing."
+            lede="Everything in Perplexed is a command. One palette, single-key shortcuts, and zero context switches between thinking and doing."
           />
           <div className="mt-10 space-y-2.5">
             {SHORTCUTS.map((shortcut) => (
