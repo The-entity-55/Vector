@@ -42,3 +42,39 @@ export const list = orgQuery({
     return result;
   },
 });
+
+/**
+ * Home — the same cross-team assigned work as `list`, but without dropping
+ * finished issues, so the Home screen can render Upcoming, Overdue, and
+ * Completed sections (Asana-style) from a single query. Canceled issues are
+ * excluded; only genuinely completed ("done") work counts as Completed.
+ */
+export const home = orgQuery({
+  args: {},
+  returns: v.array(v.object(myIssueShape)),
+  handler: async (ctx) => {
+    const issues = await ctx.db
+      .query("issues")
+      .withIndex("by_assignee", (q) =>
+        q.eq("orgId", ctx.org._id).eq("assigneeId", ctx.user._id)
+      )
+      .collect();
+
+    const teamKeys = new Map<string, string>();
+    const result = [];
+    for (const issue of issues) {
+      // Canceled work is neither actionable nor "completed"; leave it out.
+      if (issue.status === "canceled") {
+        continue;
+      }
+      let key = teamKeys.get(issue.teamId);
+      if (key === undefined) {
+        const team = await ctx.db.get(issue.teamId);
+        key = team?.key ?? "";
+        teamKeys.set(issue.teamId, key);
+      }
+      result.push({ ...issue, teamKey: key });
+    }
+    return result;
+  },
+});

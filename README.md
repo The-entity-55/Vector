@@ -1,4 +1,4 @@
-# Vector — Linear-Style Project Management for Teams
+# Vector — Real-Time Project Management for Teams
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](LICENSE.md)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
@@ -9,7 +9,7 @@
 
 > **⚠️ Disclaimer:** This is an **educational project** built for learning purposes only. "Vector" is a fictional name used for this demo — we do not claim any trademark or intellectual property rights over it. This project is **not affiliated with, endorsed by, or connected to Linear, Jira, Asana, or any other project management platform**. All organization names, issues, and user data in the seed files are entirely fictional. Third-party service names (Clerk, Convex, Vercel, Next.js, OpenAI, Tailwind CSS, etc.) are trademarks of their respective owners and are used here solely to describe the technologies used in this project.
 
-A full-stack, real-time **Linear clone** — a B2B multi-tenant SaaS issue tracker where teams manage issues on Kanban boards, plan projects and cycles, collaborate with comments and mentions, and ship faster with a built-in **AI agent** that knows their entire workspace.
+A full-stack, real-time **B2B multi-tenant SaaS issue tracker** where teams manage issues on Kanban boards, plan projects and cycles, collaborate with comments and mentions, and ship faster with a built-in **AI agent** that knows their entire workspace. Each member gets a personal **Home** dashboard and cross-team **My Tasks** view to stay on top of their work.
 
 > **Who is this for?**
 > Anyone who wants to learn how to build a production-grade, multi-tenant B2B SaaS using modern tools — or anyone looking for a serious starter template for their own project management product.
@@ -37,12 +37,14 @@ You'll need free accounts on these services to run the app. **Set them up before
 
 ## 🤔 What Is This App?
 
-Think of Vector as **your own mini Linear** — a modern issue tracker built from scratch as a learning project, with the same keyboard-first, dense, dark-mode-default aesthetic.
+Think of Vector as **your own modern issue tracker** — built from scratch as a learning project, with a keyboard-first, dense, dark-mode-default aesthetic.
 
 It's a multi-tenant workspace app. Every organization gets its own isolated workspace, and members collaborate inside it in real time:
 
 **As a team member**, you can:
 
+- Land on a personal **Home** dashboard that greets you by name and by time of day, and rolls up your **Upcoming**, **Overdue**, and **Completed** tasks across every team (Asana-style)
+- Track your assigned work in one place with **My Tasks**, bucketed by due date (Overdue, Today, Upcoming, Later, No due date)
 - Create and manage issues with statuses, priorities, assignees, estimates, due dates, and labels
 - Drag issues across a **Kanban board** that updates for everyone instantly
 - Search the entire workspace with full-text search and save filtered views
@@ -110,7 +112,12 @@ Want to build apps like this from scratch? Learn how to **code with AI the right
 - 🗂️ **Kanban board** — Drag & drop with @dnd-kit and fractional sort ordering; every move syncs to all clients instantly
 - 🔍 **Full-text search** — Convex search indexes across issue titles and descriptions, scoped to your workspace
 - 💾 **Saved views** — Save filter combinations as personal or shared views
-- ⌨️ **Command palette** — ⌘K for everything, plus single-key shortcuts (Linear style)
+- ⌨️ **Command palette** — ⌘K for everything, plus single-key shortcuts
+
+### Personal Views
+
+- 🏠 **Home dashboard** — A personal landing screen (in the sidebar, above the workspace) with a time-of-day greeting by name, and your work split into **Upcoming**, **Overdue**, and **Completed** tabs across every team — Asana-style
+- ✅ **My Tasks** — A cross-team roll-up of everything assigned to you, bucketed by due date: Overdue, Today, Upcoming (next 7 days), Later, and No due date, with a due-today reminder banner
 
 ### Collaboration
 
@@ -162,7 +169,7 @@ _Annual billing: Pro $16/mo-equivalent, Enterprise $79/mo-equivalent._
 - 🧩 **Convex components** — `@convex-dev/agent` (AI), `@convex-dev/presence` (live presence), `@convex-dev/rate-limiter` (AI quotas)
 - 🔎 **Search + vector indexes** — Full-text search indexes and a 1536-dimension vector index, both defined in the schema
 - 🖱️ **@dnd-kit drag & drop** — With fractional `sortOrder` ranking so reorders are O(1) writes
-- 🧩 **shadcn/ui + Tailwind CSS v4** — Linear-style density, dark theme by default, light mode via `next-themes`
+- 🧩 **shadcn/ui + Tailwind CSS v4** — Dense, keyboard-first UI, dark theme by default, light mode via `next-themes`
 - ✅ **Validators everywhere** — Every public Convex function validates args AND return values
 
 ---
@@ -450,7 +457,7 @@ Already have the base app running? Here are some ideas to make it your own:
 
 - 📈 **Pagination** — Cursor-based pagination for orgs with tens of thousands of issues
 - 🌐 **Public issue sharing** — Read-only public links for individual issues
-- 📦 **Import/export** — Bring in issues from CSV, Jira, or the real Linear's export format
+- 📦 **Import/export** — Bring in issues from CSV or other issue trackers' export formats
 
 ### Monetization
 
@@ -507,7 +514,7 @@ See the full [LICENSE.md](LICENSE.md) for details.
 | Path                                                                  | Purpose                                                                          |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `app/(marketing)/`                                                    | Landing page and pricing page (public)                                           |
-| `app/(app)/[orgSlug]/`                                                | The workspace: team views, board, issues, projects, cycles, search, AI, settings |
+| `app/(app)/[orgSlug]/`                                                | The workspace: Home, My Tasks, team views, board, issues, projects, cycles, search, AI, settings |
 | `app/onboarding/`                                                     | Create-or-join-organization flow after sign-up                                   |
 | `app/sign-in/`, `app/sign-up/`                                        | Clerk auth pages                                                                 |
 | `convex/schema.ts`                                                    | Database schema — tables, indexes, search & vector indexes                       |
