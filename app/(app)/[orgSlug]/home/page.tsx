@@ -1,7 +1,13 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Loader2 } from "lucide-react";
+import {
+  Loader2,
+  ListTodo,
+  LayoutDashboard,
+  BarChart3,
+  Activity,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -10,6 +16,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PriorityIcon } from "@/components/shared/priority-icon";
 import { StatusIcon } from "@/components/shared/status-icon";
 import { cn } from "@/lib/utils";
+import { DashboardPanel } from "@/components/home/dashboard-panel";
+import { ReportingPanel } from "@/components/home/reporting-panel";
+import { ActivitiesPanel } from "@/components/home/activities-panel";
 
 // Workspace-local UTC offset (mirrors my-tasks / calendar-view / timeline-view).
 const WORKSPACE_OFFSET_MINUTES = 330; // IST UTC+5:30
@@ -30,30 +39,44 @@ function greetingFor(nowMs: number): string {
   return "Good night";
 }
 
-type Tab = "upcoming" | "overdue" | "completed";
+// ── Sub-tabs for the "My Tasks" view ────────────────────────────────────
+type TaskTab = "upcoming" | "overdue" | "completed";
 
-const TAB_ORDER: Tab[] = ["upcoming", "overdue", "completed"];
-const TAB_LABELS: Record<Tab, string> = {
+const TASK_TAB_ORDER: TaskTab[] = ["upcoming", "overdue", "completed"];
+const TASK_TAB_LABELS: Record<TaskTab, string> = {
   upcoming: "Upcoming",
   overdue: "Overdue",
   completed: "Completed",
 };
 
+// ── Top-level home views ────────────────────────────────────────────────
+type HomeView = "tasks" | "dashboard" | "reporting" | "activities";
+
+const HOME_VIEWS: {
+  key: HomeView;
+  label: string;
+  icon: typeof ListTodo;
+}[] = [
+  { key: "tasks", label: "My Tasks", icon: ListTodo },
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "reporting", label: "Reporting", icon: BarChart3 },
+  { key: "activities", label: "Activities", icon: Activity },
+];
+
 /**
- * Home — a personal landing screen: a time-of-day greeting for the signed-in
- * user, then their assigned work split into Upcoming, Overdue, and Completed
- * the way Asana's Home does.
+ * Home — a personal landing screen with multiple views:
+ * My Tasks (Upcoming/Overdue/Completed), Dashboard, Reporting, and Activities.
  */
 export default function HomePage() {
   const params = useParams<{ orgSlug: string }>();
   const user = useQuery(api.users.current);
   const tasks = useQuery(api.myTasks.home);
-  // Captured once at mount; the day boundary doesn't need live updates here.
   const [nowMs] = useState(() => Date.now());
-  const [tab, setTab] = useState<Tab>("upcoming");
+  const [view, setView] = useState<HomeView>("tasks");
+  const [taskTab, setTaskTab] = useState<TaskTab>("upcoming");
 
   const buckets = useMemo(() => {
-    const map: Record<Tab, typeof tasks> = {
+    const map: Record<TaskTab, typeof tasks> = {
       upcoming: [],
       overdue: [],
       completed: [],
@@ -65,19 +88,17 @@ export default function HomePage() {
         map.completed!.push(task);
         continue;
       }
-      // Open work: overdue if its due date is before today, else upcoming.
       if (task.dueDate != null && dayIndex(task.dueDate) < todayIdx) {
         map.overdue!.push(task);
       } else {
         map.upcoming!.push(task);
       }
     }
-    // Upcoming/overdue by soonest due date; completed by most recently updated.
     map.upcoming!.sort(
-      (a, b) => (a.dueDate ?? Infinity) - (b.dueDate ?? Infinity)
+      (a, b) => (a.dueDate ?? Infinity) - (b.dueDate ?? Infinity),
     );
     map.overdue!.sort(
-      (a, b) => (a.dueDate ?? Infinity) - (b.dueDate ?? Infinity)
+      (a, b) => (a.dueDate ?? Infinity) - (b.dueDate ?? Infinity),
     );
     map.completed!.sort((a, b) => b._creationTime - a._creationTime);
     return map;
@@ -92,12 +113,13 @@ export default function HomePage() {
   }
 
   const firstName = user?.name?.trim().split(/\s+/)[0] ?? "";
-  const active = buckets[tab] ?? [];
+  const active = buckets[taskTab] ?? [];
 
   return (
     <ScrollArea className="flex-1">
-      <div className="mx-auto flex max-w-3xl flex-col px-6 py-10">
-        <header className="flex flex-col items-center gap-1 pb-8 text-center">
+      <div className="mx-auto flex max-w-5xl flex-col px-6 py-10">
+        {/* ── Greeting header ─────────────────────────────── */}
+        <header className="flex flex-col items-center gap-1 pb-6 text-center print:hidden">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {new Date(nowMs).toLocaleDateString(undefined, {
               weekday: "long",
@@ -111,75 +133,116 @@ export default function HomePage() {
           </h1>
         </header>
 
-        <div className="rounded-lg border bg-card">
-          <div className="flex items-center gap-1 border-b px-2">
-            {TAB_ORDER.map((key) => (
+        {/* ── Top-level view tabs ─────────────────────────── */}
+        <div className="mb-6 flex items-center justify-center print:hidden">
+          <div className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+            {HOME_VIEWS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
-                onClick={() => setTab(key)}
+                onClick={() => setView(key)}
                 className={cn(
-                  "relative flex h-10 items-center gap-1.5 px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
-                  tab === key &&
-                    "text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-primary"
+                  "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  view === key
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {TAB_LABELS[key]}
-                <span className="text-xs text-muted-foreground">
-                  {buckets[key]!.length}
-                </span>
+                <Icon className="size-3.5" />
+                {label}
               </button>
             ))}
           </div>
+        </div>
 
-          {active.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-20 text-center">
-              <p className="text-sm text-muted-foreground">
-                {tab === "completed"
-                  ? "No completed tasks yet."
-                  : tab === "overdue"
-                    ? "Nothing overdue. Nicely done."
-                    : "No upcoming tasks. Enjoy the calm."}
-              </p>
-            </div>
-          ) : (
-            active.map((task) => (
-              <Link
-                key={task._id}
-                href={`/${params.orgSlug}/issue/${task._id}`}
-                className="flex h-9 items-center gap-2 border-b px-4 text-sm last:border-b-0 hover:bg-muted/40"
-              >
-                <StatusIcon status={task.status} className="size-3.5" />
-                <PriorityIcon priority={task.priority} className="size-3.5" />
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                  {task.teamKey}-{task.number}
-                </span>
-                <span
+        {/* ── View content ────────────────────────────────── */}
+        {view === "tasks" && (
+          <div className="rounded-lg border bg-card">
+            <div className="flex items-center gap-1 border-b px-2">
+              {TASK_TAB_ORDER.map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setTaskTab(key)}
                   className={cn(
-                    "truncate",
-                    tab === "completed" && "text-muted-foreground line-through"
+                    "relative flex h-10 items-center gap-1.5 px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                    taskTab === key &&
+                      "text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-primary",
                   )}
                 >
-                  {task.title}
-                </span>
-                {task.dueDate != null && (
+                  {TASK_TAB_LABELS[key]}
+                  <span className="text-xs text-muted-foreground">
+                    {buckets[key]!.length}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {active.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-20 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {taskTab === "completed"
+                    ? "No completed tasks yet."
+                    : taskTab === "overdue"
+                      ? "Nothing overdue. Nicely done."
+                      : "No upcoming tasks. Enjoy the calm."}
+                </p>
+              </div>
+            ) : (
+              active.map((task) => (
+                <Link
+                  key={task._id}
+                  href={`/${params.orgSlug}/issue/${task._id}`}
+                  className="flex h-9 items-center gap-2 border-b px-4 text-sm last:border-b-0 hover:bg-muted/40"
+                >
+                  <StatusIcon status={task.status} className="size-3.5" />
+                  <PriorityIcon priority={task.priority} className="size-3.5" />
+                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                    {task.teamKey}-{task.number}
+                  </span>
                   <span
                     className={cn(
-                      "ml-auto shrink-0 text-[11px]",
-                      tab === "overdue"
-                        ? "text-destructive"
-                        : "text-muted-foreground"
+                      "truncate",
+                      taskTab === "completed" &&
+                        "text-muted-foreground line-through",
                     )}
                   >
-                    {new Date(task.dueDate).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {task.title}
                   </span>
-                )}
-              </Link>
-            ))
-          )}
-        </div>
+                  {task.dueDate != null && (
+                    <span
+                      className={cn(
+                        "ml-auto shrink-0 text-[11px]",
+                        taskTab === "overdue"
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {new Date(task.dueDate).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                  )}
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+
+        {view === "dashboard" && (
+          <DashboardPanel tasks={tasks ?? []} />
+        )}
+
+        {view === "reporting" && (
+          <ReportingPanel tasks={tasks ?? []} nowMs={nowMs} />
+        )}
+
+        {view === "activities" && (
+          <ActivitiesPanel
+            tasks={tasks ?? []}
+            orgSlug={params.orgSlug ?? ""}
+            nowMs={nowMs}
+          />
+        )}
       </div>
     </ScrollArea>
   );
