@@ -65,7 +65,7 @@ export function AppSidebar() {
   const base = `/${params.orgSlug}`;
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar">
+    <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar print:hidden">
       <div className="flex items-center justify-between gap-2 p-3">
         <OrganizationSwitcher
           hidePersonal
