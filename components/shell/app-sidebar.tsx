@@ -7,6 +7,7 @@ import {
   Box,
   CheckCircle2,
   ChevronDown,
+  Home,
   Plus,
   RefreshCcw,
   Search,
@@ -108,6 +109,9 @@ export function AppSidebar() {
 
       <ScrollArea className="flex-1 px-3">
         <nav className="flex flex-col gap-0.5 pb-2">
+          <NavLink href={`${base}/home`} icon={<Home className="size-4" />}>
+            Home
+          </NavLink>
           <NavLink href={base} exact icon={<Box className="size-4" />}>
             Workspace
           </NavLink>
