@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -39,6 +39,8 @@ export default function MyTasksPage() {
   const tasks = useQuery(api.myTasks.list);
   // Captured once at mount; the day boundary doesn't need live updates here.
   const [nowMs] = useState(() => Date.now());
+  // Dismissed state is session-only — resets on navigation/reload.
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const buckets = useMemo(() => {
     const map: Record<Bucket, typeof tasks> = {
@@ -78,12 +80,37 @@ export default function MyTasksPage() {
     );
   }
 
+  const dueTodayCount = buckets.today?.length ?? 0;
+  const showBanner = !bannerDismissed && dueTodayCount > 0;
+
   return (
     <>
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 text-sm">
         <span className="font-medium">My Tasks</span>
         <span className="text-muted-foreground">{tasks.length}</span>
       </header>
+
+      {/* Due-today warning banner */}
+      {showBanner && (
+        <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-400">
+          <span className="text-base leading-none">⏰</span>
+          <span className="flex-1">
+            You have{" "}
+            <span className="font-semibold">
+              {dueTodayCount} issue{dueTodayCount !== 1 ? "s" : ""}
+            </span>{" "}
+            due today — please complete {dueTodayCount !== 1 ? "them" : "it"} before end of day.
+          </span>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            aria-label="Dismiss due-date reminder"
+            className="ml-auto shrink-0 rounded p-0.5 opacity-70 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
       <ScrollArea className="flex-1">
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-32 text-center">

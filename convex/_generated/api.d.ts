@@ -23,6 +23,7 @@ import type * as crons from "../crons.js";
 import type * as customFields from "../customFields.js";
 import type * as cycles from "../cycles.js";
 import type * as digest from "../digest.js";
+import type * as dueDateReminders from "../dueDateReminders.js";
 import type * as google_api from "../google/api.js";
 import type * as google_auth from "../google/auth.js";
 import type * as google_calendar from "../google/calendar.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   customFields: typeof customFields;
   cycles: typeof cycles;
   digest: typeof digest;
+  dueDateReminders: typeof dueDateReminders;
   "google/api": typeof google_api;
   "google/auth": typeof google_auth;
   "google/calendar": typeof google_calendar;
