@@ -32,9 +32,9 @@ export function Footer() {
           <div className="max-w-xs">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <span className="flex size-6 items-center justify-center rounded bg-primary text-xs font-bold text-primary-foreground">
-                V
+                P
               </span>
-              Vector
+              Perplexed
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               The issue tracker built for speed. Plan, track, and ship with
@@ -63,7 +63,7 @@ export function Footer() {
         </div>
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t pt-6 sm:flex-row sm:items-center">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Vector. All systems operational.
+            © {new Date().getFullYear()} Perplexed. All systems operational.
           </p>
           <p className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
             <span className="size-1.5 rounded-full bg-emerald-500" />
