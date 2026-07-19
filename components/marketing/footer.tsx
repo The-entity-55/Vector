@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const COLUMNS: {
   heading: string;
@@ -31,9 +32,13 @@ export function Footer() {
         <div className="flex flex-col justify-between gap-10 md:flex-row">
           <div className="max-w-xs">
             <Link href="/" className="flex items-center gap-2 font-semibold">
-              <span className="flex size-6 items-center justify-center rounded bg-primary text-xs font-bold text-primary-foreground">
-                P
-              </span>
+              <Image
+                src="/logo.png"
+                alt="Perplexed"
+                width={24}
+                height={24}
+                className="size-6 rounded object-contain"
+              />
               Perplexed
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">

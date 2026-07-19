@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 export function MockApp({ className }: { className?: string }) {
   return (
     <MockFrame className={className}>
-      <MockWindowBar title="perplexed.app/acme/team/eng" />
+      <MockWindowBar title="perplexed.site/acme/team/eng" />
       <div className="flex h-[26rem] text-[13px]">
         <MockSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
