@@ -344,6 +344,74 @@ const standupReport = createTool({
   },
 });
 
+/**
+ * Voice navigation. Static app sections map to fixed relative paths; a team is
+ * resolved by key to its `team/{id}` route. The tool returns a directive the
+ * browser voice client turns into an actual `router.push` — the server-side
+ * agent cannot navigate the browser directly. `path` is always relative to the
+ * current org (the client prefixes `/{orgSlug}`), and team lookups are
+ * org-scoped, so navigation can never cross into another workspace.
+ */
+const NAV_DESTINATIONS = {
+  workspace: { path: "", label: "Workspace" },
+  "my-tasks": { path: "/my-tasks", label: "My Tasks" },
+  projects: { path: "/projects", label: "Projects" },
+  cycles: { path: "/cycles", label: "Cycles" },
+  ai: { path: "/ai", label: "AI Agent" },
+  settings: { path: "/settings", label: "Settings" },
+} as const;
+
+type NavDestination = keyof typeof NAV_DESTINATIONS;
+
+const NAV_DESTINATION_KEYS = Object.keys(NAV_DESTINATIONS) as NavDestination[];
+
+type NavResult = { kind: "navigate"; path: string; label: string };
+
+const navigate = createTool({
+  description:
+    "Navigate the app to a section or a team page for the user (e.g. when they say \"switch to projects\", \"open my tasks\", \"go to the workspace\", \"take me to the Engineering team\"). Pass a destination for a fixed section, or a teamKey to open that team. Discover real team keys with listTeams first when the user names a team.",
+  inputSchema: jsonSchema<{
+    destination?: NavDestination;
+    teamKey?: string;
+  }>({
+    type: "object",
+    properties: {
+      destination: {
+        type: "string",
+        enum: [...NAV_DESTINATION_KEYS],
+        description:
+          "A fixed app section. Omit this when navigating to a team (use teamKey instead).",
+      },
+      teamKey: {
+        type: "string",
+        description:
+          "Team key, e.g. ENG, to open that team's page. Takes precedence over destination.",
+      },
+    },
+    additionalProperties: false,
+  }),
+  execute: async (ctx: VectorToolCtx, input): Promise<NavResult> => {
+    if (input.teamKey) {
+      const team = await ctx.runQuery(internal.agent.data.teamIdByKey, {
+        orgId: ctx.orgId,
+        teamKey: input.teamKey,
+      });
+      return {
+        kind: "navigate",
+        path: `/team/${team.teamId}`,
+        label: team.name,
+      };
+    }
+    if (input.destination && input.destination in NAV_DESTINATIONS) {
+      const dest = NAV_DESTINATIONS[input.destination];
+      return { kind: "navigate", path: dest.path, label: dest.label };
+    }
+    throw new Error(
+      "Specify a destination (workspace, my-tasks, projects, cycles, ai, settings) or a teamKey."
+    );
+  },
+});
+
 export const vectorTools = {
   listTeams,
   listMembers,
@@ -354,4 +422,5 @@ export const vectorTools = {
   updateIssue,
   cycleSummary,
   standupReport,
+  navigate,
 };
