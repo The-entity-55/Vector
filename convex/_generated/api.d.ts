@@ -51,6 +51,7 @@ import type * as telegram_notify from "../telegram/notify.js";
 import type * as timeline from "../timeline.js";
 import type * as users from "../users.js";
 import type * as views from "../views.js";
+import type * as voice from "../voice.js";
 import type * as webhooks from "../webhooks.js";
 
 import type {
@@ -103,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   timeline: typeof timeline;
   users: typeof users;
   views: typeof views;
+  voice: typeof voice;
   webhooks: typeof webhooks;
 }>;
 
