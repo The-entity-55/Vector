@@ -36,6 +36,16 @@ function toUtc(localHour: number, localMinute: number): {
 
 const crons = cronJobs();
 
+// ~7:30 local — "due soon" reminder pushed to every assignee whose issue is
+// due within the next 36 hours (covers today + early tomorrow). Fires before
+// the morning digest so members see the nudge first.
+crons.daily(
+  "due-date-reminders",
+  toUtc(7, 30),
+  internal.dueDateReminders.runReminders,
+  {}
+);
+
 // ~8:00 local — overnight recap.
 crons.daily(
   "telegram-digest-morning",

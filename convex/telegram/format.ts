@@ -198,3 +198,42 @@ export function formatDigest(slot: DigestSlot, data: DigestData): string | null 
 
   return lines.join("\n").trim();
 }
+
+// ── Due-date reminders ────────────────────────────────────────────────────────
+
+type DueSoonIssue = {
+  identifier: string;
+  title: string;
+  dueDate: number;
+};
+
+/**
+ * Personal "due soon" nudge sent to an assignee (or broadcast for unassigned
+ * issues). Produces a compact list of issues due within the next 36 hours.
+ */
+export function formatDueDateReminder(issues: DueSoonIssue[]): string {
+  const now = Date.now();
+  const lines = ["⏰ *Due soon — please complete these tasks*", ""];
+
+  for (const issue of issues) {
+    const msLeft = issue.dueDate - now;
+    const hoursLeft = Math.round(msLeft / (60 * 60 * 1000));
+    const dueLabel =
+      hoursLeft <= 24
+        ? `due in ~${hoursLeft}h`
+        : `due ${new Date(issue.dueDate).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          })}`;
+
+    lines.push(
+      `• *${issue.identifier}* ${truncate(issue.title, 60)} _(${dueLabel})_`
+    );
+  }
+
+  lines.push("");
+  lines.push("Mark them done in Vector when complete ✅");
+
+  return lines.join("\n").trim();
+}
+
