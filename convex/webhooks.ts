@@ -1,14 +1,15 @@
 import { v } from "convex/values";
-import { Doc } from "./_generated/dataModel";
 import { internalMutation, MutationCtx } from "./_generated/server";
+import { planValidator } from "./schema";
 
 /**
- * Clerk → Convex sync. Clerk is the source of truth for users, orgs,
- * memberships, and subscriptions; these handlers mirror them into Convex
- * tables so queries can join against them with indexes.
+ * Clerk → Convex sync. Clerk is the source of truth for users, orgs, and
+ * memberships; these handlers mirror them into Convex tables so queries can
+ * join against them with indexes.
  *
- * Clerk billing uses dot-notation event names (subscription.updated,
- * subscriptionItem.canceled) — never Stripe-style names.
+ * Billing is NOT handled here — subscriptions live in Polar and are synced by
+ * the @convex-dev/polar component (see `convex/polar.ts` and the Polar route in
+ * `convex/http.ts`), which calls `setOrgPlanByClerkOrgId` below.
  */
 
 type ClerkUserData = {
@@ -32,20 +33,6 @@ type ClerkMembershipData = {
   role?: string;
   organization?: { id: string };
   public_user_data?: { user_id: string };
-};
-
-type ClerkSubscriptionData = {
-  id: string;
-  status?: string;
-  payer?: { organization_id?: string; user_id?: string };
-  items?: { status?: string; plan?: { slug?: string } }[];
-};
-
-type ClerkSubscriptionItemData = {
-  id: string;
-  status?: string;
-  payer?: { organization_id?: string; user_id?: string };
-  plan?: { slug?: string };
 };
 
 export const handleClerkEvent = internalMutation({
@@ -75,14 +62,6 @@ export const handleClerkEvent = internalMutation({
       await upsertMembership(ctx, args.data as ClerkMembershipData);
     } else if (eventType === "organizationMembership.deleted") {
       await deleteMembership(ctx, args.data as ClerkMembershipData);
-    } else if (eventType.startsWith("subscription.")) {
-      await syncSubscription(ctx, args.data as ClerkSubscriptionData);
-    } else if (eventType.startsWith("subscriptionItem.")) {
-      await syncSubscriptionItem(
-        ctx,
-        eventType,
-        args.data as ClerkSubscriptionItemData
-      );
     } else {
       console.log("Unhandled Clerk webhook event", eventType);
     }
@@ -240,16 +219,6 @@ async function deleteMembership(ctx: MutationCtx, data: ClerkMembershipData) {
   }
 }
 
-function planFromSlug(slug: string | undefined): Doc<"organizations">["plan"] | null {
-  if (slug === "pro" || slug === "enterprise") {
-    return slug;
-  }
-  if (slug === "free_org") {
-    return "free";
-  }
-  return null;
-}
-
 async function getOrgByClerkId(ctx: MutationCtx, clerkOrgId: string) {
   return await ctx.db
     .query("organizations")
@@ -257,75 +226,32 @@ async function getOrgByClerkId(ctx: MutationCtx, clerkOrgId: string) {
     .unique();
 }
 
-async function syncSubscription(
-  ctx: MutationCtx,
-  data: ClerkSubscriptionData
-) {
-  const clerkOrgId = data.payer?.organization_id;
-  if (!clerkOrgId) {
-    return;
-  }
-  const org = await getOrgByClerkId(ctx, clerkOrgId);
-  if (!org) {
-    // Same out-of-order delivery race as memberships: fail so Svix retries.
-    throw new Error(
-      `Subscription sync: org not synced yet (${clerkOrgId}) — failing so Svix retries`
-    );
-  }
-
-  // Highest active paid plan wins; fall back to free.
-  let plan: Doc<"organizations">["plan"] = "free";
-  for (const item of data.items ?? []) {
-    const itemPlan = planFromSlug(item.plan?.slug);
-    if (
-      itemPlan &&
-      itemPlan !== "free" &&
-      (item.status === "active" || item.status === "upcoming")
-    ) {
-      plan = itemPlan === "enterprise" ? "enterprise" : plan === "enterprise" ? plan : itemPlan;
+/**
+ * Set an org's plan from a Polar subscription event. Called by the Polar
+ * webhook handler in `convex/http.ts` after it resolves the Polar product id
+ * to one of our `OrgPlan` values. `clerkOrgId` is the Polar customer key we set
+ * in `convex/polar.ts` (`getUserInfo` returns `org.clerkOrgId` as `userId`).
+ */
+export const setOrgPlanByClerkOrgId = internalMutation({
+  args: {
+    clerkOrgId: v.string(),
+    plan: planValidator,
+    subscriptionStatus: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const org = await getOrgByClerkId(ctx, args.clerkOrgId);
+    if (!org) {
+      // Out-of-order delivery: the Clerk org sync may not have landed yet.
+      // Throwing makes Polar retry the webhook rather than dropping the plan.
+      throw new Error(
+        `Polar plan sync: org not synced yet (${args.clerkOrgId}) — failing so Polar retries`
+      );
     }
-  }
-
-  await ctx.db.patch(org._id, {
-    plan,
-    subscriptionStatus: data.status,
-  });
-}
-
-async function syncSubscriptionItem(
-  ctx: MutationCtx,
-  eventType: string,
-  data: ClerkSubscriptionItemData
-) {
-  const clerkOrgId = data.payer?.organization_id;
-  if (!clerkOrgId) {
-    return;
-  }
-  const org = await getOrgByClerkId(ctx, clerkOrgId);
-  if (!org) {
-    // Same out-of-order delivery race as memberships: fail so Svix retries.
-    throw new Error(
-      `Subscription item sync: org not synced yet (${clerkOrgId}) — failing so Svix retries`
-    );
-  }
-
-  const itemPlan = planFromSlug(data.plan?.slug);
-  if (!itemPlan || itemPlan === "free") {
-    return;
-  }
-
-  const activated =
-    eventType === "subscriptionItem.active" ||
-    (eventType === "subscriptionItem.updated" && data.status === "active");
-  const deactivated =
-    eventType === "subscriptionItem.canceled" ||
-    eventType === "subscriptionItem.ended" ||
-    eventType === "subscriptionItem.expired" ||
-    eventType === "subscriptionItem.abandoned";
-
-  if (activated) {
-    await ctx.db.patch(org._id, { plan: itemPlan, subscriptionStatus: "active" });
-  } else if (deactivated && org.plan === itemPlan) {
-    await ctx.db.patch(org._id, { plan: "free" });
-  }
-}
+    await ctx.db.patch(org._id, {
+      plan: args.plan,
+      subscriptionStatus: args.subscriptionStatus,
+    });
+    return null;
+  },
+});

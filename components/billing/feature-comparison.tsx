@@ -37,7 +37,7 @@ export function FeatureComparison() {
             </TableHead>
             {PLANS.map((plan) => (
               <TableHead
-                key={plan.slug}
+                key={plan.plan}
                 className={cn(
                   "text-center text-xs font-semibold",
                   plan.popular && "text-primary"

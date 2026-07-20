@@ -25,6 +25,7 @@ export const issuePriorityValidator = v.union(
 export const planValidator = v.union(
   v.literal("free"),
   v.literal("pro"),
+  v.literal("max"),
   v.literal("enterprise")
 );
 

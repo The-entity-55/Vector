@@ -144,28 +144,28 @@ Want to build apps like this from scratch? Learn how to **code with AI the right
 ### Billing & Multi-Tenancy
 
 - 🏢 **Clerk Organizations** — Every workspace is a Clerk organization; memberships and roles sync to Convex via webhooks
-- 💳 **Clerk B2B Billing** — Custom-designed pricing page with checkout, plan management, and invoices handled entirely by Clerk (no Stripe integration to write)
-- 🔐 **Plan gating, done right** — UI gates with `has({ plan })` / `has({ feature })` are cosmetic; Convex mutations are the real enforcement
+- 💳 **Polar billing (merchant of record)** — Custom-designed pricing page with checkout, plan management, and invoices via the `@convex-dev/polar` Convex component; Polar handles tax/VAT
+- 🔐 **Plan gating, done right** — UI gates reading `org.plan` are cosmetic; Convex mutations are the real enforcement
 - 🚦 **Free-tier limits** — Seats, projects, and issue caps enforced server-side with friendly upgrade prompts in the UI
 
 ### Pricing Tiers
 
-|                      | Free | Pro ($20/mo)                           | Enterprise ($99/mo) |
-| -------------------- | ---- | -------------------------------------- | ------------------- |
-| **Members**          | 3    | 10 (seat-based, +$10/seat after first) | Unlimited           |
-| **Projects**         | 2    | Unlimited                              | Unlimited           |
-| **Issues**           | 100  | Unlimited                              | Unlimited           |
-| **AI agent**         | —    | ✅ 50 msgs/user/day                    | ✅ Unlimited        |
-| **Priority support** | —    | —                                      | ✅                  |
+|                      | Free | Pro ($20/seat/mo)  | Max ($40/seat/mo)   | Enterprise ($99/mo) |
+| -------------------- | ---- | ------------------ | ------------------- | ------------------- |
+| **Members**          | 3    | Up to 10 (seat)    | Up to 25 (seat)     | Unlimited           |
+| **Projects**         | 2    | Unlimited          | Unlimited           | Unlimited           |
+| **Issues**           | 100  | Unlimited          | Unlimited           | Unlimited           |
+| **AI agent**         | —    | ✅ 50 msgs/user/day | ✅ Unlimited        | ✅ Unlimited        |
+| **Priority support** | —    | —                  | ✅ Email            | ✅ Dedicated        |
 
-_Annual billing: Pro $16/mo-equivalent, Enterprise $79/mo-equivalent._
+_Annual billing: Pro $16, Max $32, Enterprise $79 (per-month equivalent). Billed per seat via Polar._
 
 ### Technical Features (The Smart Stuff)
 
 - ⚛️ **Next.js 16 App Router** — Route groups for marketing vs. app shell, dynamic `[orgSlug]` workspace routes, `proxy.ts` middleware
 - 🔄 **Convex reactive backend** — No polling, no refetching. Queries are live subscriptions
 - 🛡️ **Custom function wrappers** — `orgQuery` / `orgMutation` resolve the user, org, and membership from the Clerk JWT and enforce org scoping on every single function (Convex's answer to RLS)
-- 🔐 **Clerk webhooks → Convex** — Users, organizations, memberships, and subscriptions sync via Svix-verified webhooks; Clerk stays the source of truth
+- 🔐 **Clerk webhooks → Convex** — Users, organizations, and memberships sync via Svix-verified webhooks; Clerk stays the source of truth for auth. Billing syncs separately from Polar.
 - 🧩 **Convex components** — `@convex-dev/agent` (AI), `@convex-dev/presence` (live presence), `@convex-dev/rate-limiter` (AI quotas)
 - 🔎 **Search + vector indexes** — Full-text search indexes and a 1536-dimension vector index, both defined in the schema
 - 🖱️ **@dnd-kit drag & drop** — With fractional `sortOrder` ranking so reorders are O(1) writes
@@ -534,6 +534,6 @@ See the full [LICENSE.md](LICENSE.md) for details.
 - **Route Groups** — `(marketing)` is the public site; `(app)` is the authenticated workspace. Each has its own layout.
 - **Org-Scoped Routes** — Everything in the workspace lives under `/[orgSlug]/...`. The shell guarantees the user and org are synced before pages render.
 - **Custom Convex Functions** — `orgQuery` / `orgMutation` resolve `ctx.user`, `ctx.org`, and `ctx.membership` from the Clerk JWT and reject non-members. This is Convex's alternative to Row Level Security.
-- **Clerk as Source of Truth** — Users, orgs, memberships, and subscriptions live in Clerk and are mirrored into Convex via webhooks. Feature code never writes to those tables.
-- **Two-Layer Plan Gating** — `has({ plan })` / `has({ feature })` in the UI is cosmetic; the Convex helpers in `convex/lib/limits.ts` are the real enforcement.
+- **Clerk as Source of Truth for Auth** — Users, orgs, and memberships live in Clerk and are mirrored into Convex via webhooks. Feature code never writes to those tables. Billing is owned by Polar, synced onto `organizations.plan`.
+- **Two-Layer Plan Gating** — reading `org.plan` in the UI is cosmetic; the Convex helpers in `convex/lib/limits.ts` are the real enforcement.
 - **`proxy.ts` Middleware** — Replaces traditional `middleware.ts` in Next.js 16. Protects the app routes while keeping marketing pages public.

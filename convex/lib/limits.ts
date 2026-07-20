@@ -2,8 +2,8 @@ import { Doc } from "../_generated/dataModel";
 import { MutationCtx } from "../_generated/server";
 
 /**
- * Free-tier caps. Pro/Enterprise are unlimited app-side; Clerk enforces
- * paid seat limits at invite time.
+ * Free-tier caps. Paid plans (Pro/Max/Enterprise) are unlimited app-side; the
+ * paid seat ceilings are enforced by Polar at checkout (seat quantity).
  */
 export const FREE_PLAN_LIMITS = {
   seats: 3,
@@ -11,9 +11,9 @@ export const FREE_PLAN_LIMITS = {
   issues: 100,
 } as const;
 
+/** True for any paid plan. Free is the only unpaid tier. */
 export function isPaidPlan(org: Doc<"organizations">): boolean {
-  void org;
-  return true;
+  return org.plan !== "free";
 }
 
 export async function assertCanCreateIssue(
@@ -70,7 +70,7 @@ export async function assertUnderSeatLimit(
   }
 }
 
+/** AI surfaces (agent, triage, duplicate detection) require a paid plan. */
 export function hasAiAccess(org: Doc<"organizations">): boolean {
-  void org;
-  return true;
+  return org.plan !== "free";
 }

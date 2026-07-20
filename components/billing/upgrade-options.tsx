@@ -1,27 +1,28 @@
 "use client";
 
 import { useOrganization } from "@clerk/nextjs";
-import { CheckoutButton } from "@clerk/nextjs/experimental";
 import { Check } from "lucide-react";
-import { useParams } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
+import { api } from "@/convex/_generated/api";
+import { CheckoutLink } from "@convex-dev/polar/react";
 import { Doc } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   BillingPeriod,
   ENTERPRISE_PLAN,
+  MAX_PLAN,
   PRO_PLAN,
   PlanDefinition,
   formatPrice,
+  polarProductId,
   priceForPeriod,
 } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import { BillingPeriodToggle } from "./billing-period-toggle";
 
 /**
- * Upgrade paths from the current plan, with Clerk checkout behind custom
+ * Upgrade paths from the current plan, with Polar checkout behind custom
  * buttons. Hidden entirely on Enterprise (nothing left to upgrade to).
  */
 export function UpgradeOptions({ org }: { org: Doc<"organizations"> }) {
@@ -29,10 +30,12 @@ export function UpgradeOptions({ org }: { org: Doc<"organizations"> }) {
 
   const upgrades: PlanDefinition[] =
     org.plan === "free"
-      ? [PRO_PLAN, ENTERPRISE_PLAN]
+      ? [PRO_PLAN, MAX_PLAN, ENTERPRISE_PLAN]
       : org.plan === "pro"
-        ? [ENTERPRISE_PLAN]
-        : [];
+        ? [MAX_PLAN, ENTERPRISE_PLAN]
+        : org.plan === "max"
+          ? [ENTERPRISE_PLAN]
+          : [];
 
   if (upgrades.length === 0) {
     return null;
@@ -57,7 +60,7 @@ export function UpgradeOptions({ org }: { org: Doc<"organizations"> }) {
         )}
       >
         {upgrades.map((plan) => (
-          <UpgradeCard key={plan.slug} plan={plan} period={period} />
+          <UpgradeCard key={plan.plan} plan={plan} period={period} />
         ))}
       </div>
     </section>
@@ -71,9 +74,9 @@ function UpgradeCard({
   plan: PlanDefinition;
   period: BillingPeriod;
 }) {
-  const params = useParams<{ orgSlug: string }>();
   const { membership } = useOrganization();
   const isAdmin = membership?.role === "org:admin";
+  const productId = polarProductId(plan, period);
 
   return (
     <div
@@ -117,27 +120,27 @@ function UpgradeCard({
       </ul>
 
       <div className="mt-4 flex-1" />
-      {isAdmin ? (
-        <CheckoutButton
-          planId={plan.clerkPlanId}
-          planPeriod={period}
-          for="organization"
-          onSubscriptionComplete={() =>
-            toast.success(`Welcome to ${plan.name}`)
-          }
-          newSubscriptionRedirectUrl={`/${params.orgSlug}/settings/billing`}
-        >
-          <Button
-            size="sm"
-            variant={plan.popular ? "default" : "outline"}
-            className="w-full"
-          >
-            Upgrade to {plan.name}
-          </Button>
-        </CheckoutButton>
-      ) : (
+      {!isAdmin ? (
         <Button size="sm" variant="outline" className="w-full" disabled>
           Ask an admin to upgrade
+        </Button>
+      ) : productId ? (
+        <CheckoutLink
+          polarApi={{ generateCheckoutLink: api.polar.generateCheckoutLink }}
+          productIds={[productId]}
+          className={cn(
+            buttonVariants({
+              size: "sm",
+              variant: plan.popular ? "default" : "outline",
+            }),
+            "w-full"
+          )}
+        >
+          Upgrade to {plan.name}
+        </CheckoutLink>
+      ) : (
+        <Button size="sm" variant="outline" className="w-full" disabled>
+          Contact sales
         </Button>
       )}
     </div>

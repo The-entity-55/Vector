@@ -38,6 +38,7 @@ import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_limits from "../lib/limits.js";
 import type * as myTasks from "../myTasks.js";
 import type * as organizations from "../organizations.js";
+import type * as polar from "../polar.js";
 import type * as presenceFns from "../presenceFns.js";
 import type * as projects from "../projects.js";
 import type * as search from "../search.js";
@@ -92,6 +93,7 @@ declare const fullApi: ApiFromModules<{
   "lib/limits": typeof lib_limits;
   myTasks: typeof myTasks;
   organizations: typeof organizations;
+  polar: typeof polar;
   presenceFns: typeof presenceFns;
   projects: typeof projects;
   search: typeof search;
@@ -140,4 +142,5 @@ export declare const components: {
   agent: import("@convex-dev/agent/_generated/component.js").ComponentApi<"agent">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
   presence: import("@convex-dev/presence/_generated/component.js").ComponentApi<"presence">;
+  polar: import("@convex-dev/polar/_generated/component.js").ComponentApi<"polar">;
 };
