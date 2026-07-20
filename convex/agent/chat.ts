@@ -167,7 +167,7 @@ export const sendMessage = orgMutation({
       args.threadId
     );
 
-    // Pro: 50 messages/user/day. Enterprise: unlimited.
+    // Pro: 50 messages/user/day. Max & Enterprise: unlimited.
     if (ctx.org.plan === "pro") {
       const status = await aiRateLimiter.limit(ctx, "aiMessagesDaily", {
         key: aiMessageKey(ctx.org._id, ctx.user._id),
@@ -178,7 +178,7 @@ export const sendMessage = orgMutation({
           Math.ceil((status.retryAfter ?? 0) / (60 * 60 * 1000))
         );
         throw new Error(
-          `Daily AI limit reached (${PRO_DAILY_MESSAGE_LIMIT} messages/day on Pro). Try again in about ${hours}h, or upgrade to Enterprise for unlimited AI.`
+          `Daily AI limit reached (${PRO_DAILY_MESSAGE_LIMIT} messages/day on Pro). Try again in about ${hours}h, or upgrade to Max for unlimited AI.`
         );
       }
     }

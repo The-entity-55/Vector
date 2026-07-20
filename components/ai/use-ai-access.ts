@@ -1,15 +1,18 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 /**
- * Cosmetic plan gate for AI surfaces via Clerk's `has` check.
- * Convex (`hasAiAccess`) is the authoritative enforcement.
+ * Cosmetic plan gate for AI surfaces, read from the synced Convex
+ * `organizations.plan` (source: Polar webhooks). Convex (`hasAiAccess`) is the
+ * authoritative enforcement.
  */
 export function useAiAccess(): { isLoaded: boolean; hasAccess: boolean } {
-  const { isLoaded } = useAuth();
+  const org = useQuery(api.organizations.current);
+  const isLoaded = org !== undefined;
   return {
     isLoaded,
-    hasAccess: isLoaded ? true : false,
+    hasAccess: isLoaded && org !== null && org.plan !== "free",
   };
 }

@@ -1,22 +1,20 @@
 "use client";
 
 import { useOrganization } from "@clerk/nextjs";
-import {
-  PlanDetailsButton,
-  SubscriptionDetailsButton,
-} from "@clerk/nextjs/experimental";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
+import { api } from "@/convex/_generated/api";
+import { CustomerPortalLink } from "@convex-dev/polar/react";
 import { Doc } from "@/convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatPrice, planForOrg } from "@/lib/plans";
 
 function statusBadgeVariant(
   status: string
 ): "default" | "secondary" | "destructive" {
-  if (status === "active") {
+  if (status === "active" || status === "trialing") {
     return "default";
   }
   if (status === "past_due" || status === "unpaid" || status === "incomplete") {
@@ -26,8 +24,8 @@ function statusBadgeVariant(
 }
 
 /**
- * Current-plan summary for the org billing settings page, with Clerk's
- * subscription drawer behind a custom button for admins.
+ * Current-plan summary for the org billing settings page, with Polar's
+ * customer portal behind a custom button for admins.
  */
 export function CurrentPlanCard({ org }: { org: Doc<"organizations"> }) {
   const { membership } = useOrganization();
@@ -79,14 +77,15 @@ export function CurrentPlanCard({ org }: { org: Doc<"organizations"> }) {
         <div className="mt-4 flex items-center gap-2 border-t pt-3">
           {isPaid ? (
             isAdmin ? (
-              <SubscriptionDetailsButton
-                for="organization"
-                onSubscriptionCancel={() =>
-                  toast.success("Subscription cancelled")
-                }
+              <CustomerPortalLink
+                polarApi={{
+                  generateCustomerPortalUrl:
+                    api.polar.generateCustomerPortalUrl,
+                }}
+                className={cn(buttonVariants({ size: "sm" }))}
               >
-                <Button size="sm">Manage subscription</Button>
-              </SubscriptionDetailsButton>
+                Manage subscription
+              </CustomerPortalLink>
             ) : (
               <p className="text-xs text-muted-foreground">
                 Only workspace admins can manage the subscription.
@@ -100,11 +99,6 @@ export function CurrentPlanCard({ org }: { org: Doc<"organizations"> }) {
               </Link>
             </Button>
           )}
-          <PlanDetailsButton planId={plan.clerkPlanId}>
-            <Button variant="ghost" size="sm">
-              Plan details
-            </Button>
-          </PlanDetailsButton>
         </div>
       </div>
     </section>

@@ -1,31 +1,29 @@
 "use client";
 
 import { useAuth, useOrganization } from "@clerk/nextjs";
-import {
-  CheckoutButton,
-  PlanDetailsButton,
-  SubscriptionDetailsButton,
-} from "@clerk/nextjs/experimental";
+import { useQuery } from "convex/react";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
+import { api } from "@/convex/_generated/api";
+import { CheckoutLink } from "@convex-dev/polar/react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   BillingPeriod,
   PLANS,
   PlanDefinition,
   formatPrice,
+  polarProductId,
   priceForPeriod,
 } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import { BillingPeriodToggle } from "./billing-period-toggle";
 
 /**
- * Hand-built pricing table (no <PricingTable />): three plan cards driven by
- * lib/plans.ts, with Clerk CheckoutButton / PlanDetailsButton /
- * SubscriptionDetailsButton behind custom shadcn buttons.
+ * Hand-built pricing table: plan cards driven by lib/plans.ts, with Polar's
+ * <CheckoutLink> behind custom shadcn styling. "Current plan" is read from the
+ * Convex `organizations.plan` (synced from Polar webhooks), not from Clerk.
  */
 export function PricingTable() {
   const [period, setPeriod] = useState<BillingPeriod>("month");
@@ -33,9 +31,9 @@ export function PricingTable() {
   return (
     <div className="flex flex-col items-center gap-8">
       <BillingPeriodToggle period={period} onPeriodChange={setPeriod} />
-      <div className="grid w-full gap-4 md:grid-cols-3">
+      <div className="grid w-full gap-4 md:grid-cols-2 xl:grid-cols-4">
         {PLANS.map((plan) => (
-          <PlanCard key={plan.slug} plan={plan} period={period} />
+          <PlanCard key={plan.plan} plan={plan} period={period} />
         ))}
       </div>
     </div>
@@ -67,11 +65,6 @@ function PlanCard({
 
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">{plan.name}</h3>
-        <PlanDetailsButton planId={plan.clerkPlanId} initialPlanPeriod={period}>
-          <button className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline">
-            Plan details
-          </button>
-        </PlanDetailsButton>
       </div>
       <p className="mt-1 min-h-8 text-xs text-muted-foreground">
         {plan.tagline}
@@ -114,10 +107,10 @@ function PlanCard({
 }
 
 /**
- * Plan call-to-action. Checkout is only possible when signed in with an
- * active organization (Clerk throws otherwise), so the states are:
- * signed out → sign up; no active org → onboarding; member → ask an admin;
- * admin → CheckoutButton / SubscriptionDetailsButton.
+ * Plan call-to-action. Checkout requires being signed in with an active org
+ * (the Polar customer is keyed on the org). States: signed out → sign up;
+ * no active org → onboarding; current plan → disabled; non-admin → ask admin;
+ * admin on another plan → Polar <CheckoutLink>.
  */
 function PlanCta({
   plan,
@@ -126,8 +119,9 @@ function PlanCta({
   plan: PlanDefinition;
   period: BillingPeriod;
 }) {
-  const { isLoaded, isSignedIn, has, orgId } = useAuth();
-  const { organization, membership } = useOrganization();
+  const { isLoaded, isSignedIn, orgId } = useAuth();
+  const { membership } = useOrganization();
+  const org = useQuery(api.organizations.current, isSignedIn ? {} : "skip");
 
   const variant = plan.popular ? "default" : "outline";
 
@@ -159,7 +153,7 @@ function PlanCta({
     );
   }
 
-  const isCurrent = has?.({ plan: plan.slug }) ?? false;
+  const isCurrent = org?.plan === plan.plan;
   if (isCurrent) {
     return (
       <Button variant="outline" size="lg" className="w-full" disabled>
@@ -177,34 +171,28 @@ function PlanCta({
     );
   }
 
-  // Moving (back) to Free means cancelling the paid subscription.
-  if (plan.monthlyPrice === 0) {
+  // Free (or plans without a Polar product) route to the billing portal, where
+  // the current subscription can be cancelled to return to Free.
+  const productId = polarProductId(plan, period);
+  if (!productId) {
+    const slug = org?.slug;
     return (
-      <SubscriptionDetailsButton
-        for="organization"
-        onSubscriptionCancel={() => toast.success("Subscription cancelled")}
-      >
-        <Button variant="outline" size="lg" className="w-full">
+      <Button variant="outline" size="lg" className="w-full" asChild>
+        <Link href={slug ? `/${slug}/settings/billing` : "/pricing"}>
           Manage subscription
-        </Button>
-      </SubscriptionDetailsButton>
+        </Link>
+      </Button>
     );
   }
 
-  const onFreePlan = has?.({ plan: "free_org" }) ?? false;
+  const onFreePlan = !org || org.plan === "free";
   return (
-    <CheckoutButton
-      planId={plan.clerkPlanId}
-      planPeriod={period}
-      for="organization"
-      onSubscriptionComplete={() => toast.success(`Welcome to ${plan.name}`)}
-      newSubscriptionRedirectUrl={
-        organization?.slug ? `/${organization.slug}/settings/billing` : undefined
-      }
+    <CheckoutLink
+      polarApi={{ generateCheckoutLink: api.polar.generateCheckoutLink }}
+      productIds={[productId]}
+      className={cn(buttonVariants({ variant, size: "lg" }), "w-full")}
     >
-      <Button variant={variant} size="lg" className="w-full">
-        {onFreePlan ? `Upgrade to ${plan.name}` : `Switch to ${plan.name}`}
-      </Button>
-    </CheckoutButton>
+      {onFreePlan ? `Upgrade to ${plan.name}` : `Switch to ${plan.name}`}
+    </CheckoutLink>
   );
 }

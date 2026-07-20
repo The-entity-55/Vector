@@ -27,9 +27,10 @@ This repo is built **foundation-first, then in parallel tracks**. Each track is 
   - Public `query`/`mutation` without auth is forbidden except the existing `users.current` / `organizations.current`.
 - **Validators required** on args AND returns of every public function. Import shared validators (`issueStatusValidator`, etc.) from `convex/schema.ts`.
 - **Billing gates**:
-  - Plans: `free` / `pro` / `enterprise` — synced onto `ctx.org.plan`.
-  - In Convex: use helpers in `convex/lib/limits.ts` (`assertCanCreateIssue`, `assertCanCreateProject`, `hasAiAccess`, `FREE_PLAN_LIMITS`).
-  - In UI: Clerk `has({ plan: "pro" })` / `has({ feature: "ai_agent" })` via `useAuth()` (client) or `auth()` (server), or `<Show when={{ plan: "pro" }}>`. UI checks are cosmetic; Convex checks are the enforcement.
+  - Plans: `free` / `pro` / `max` / `enterprise` — synced onto `ctx.org.plan` from Polar webhooks.
+  - Billing runs on **Polar** via the `@convex-dev/polar` Convex component (`convex/polar.ts`). Customers are keyed per **org** (`getUserInfo` returns `org.clerkOrgId`); the Polar webhook (`convex/http.ts`) maps product→plan and calls `internal.webhooks.setOrgPlanByClerkOrgId`.
+  - In Convex: use helpers in `convex/lib/limits.ts` (`assertCanCreateIssue`, `assertCanCreateProject`, `hasAiAccess`, `isPaidPlan`, `FREE_PLAN_LIMITS`). These are the enforcement.
+  - In UI: read `api.organizations.current` → `org.plan` (e.g. `org.plan !== "free"`). UI checks are cosmetic; Convex checks are the enforcement. Clerk still owns auth/orgs/memberships — not billing.
 - **Activity logging**: any mutation that changes an issue should call `logActivity` from `convex/lib/activity.ts`.
 - **UI conventions**: shadcn/ui components from `components/ui/`, lucide icons, Linear-style density (small text, h-7/h-9 rows), dark theme default with light mode via `next-themes`. Shared primitives in `components/shared/` (StatusIcon, PriorityIcon, UserAvatar, LabelChip, issue-meta constants).
 - **Routes** live under `app/(app)/[orgSlug]/...`. Get the slug with `useParams<{ orgSlug: string }>()`. The shell (`components/shell/workspace-shell.tsx`) guarantees user+org are synced before your page renders.
@@ -54,15 +55,15 @@ Comments (+@mentions using `organizations.listMembers`), activity feed rendering
 
 ### Track D — AI Agent (`track/ai-agent`)
 
-Convex Agent component (`@convex-dev/agent`) with OpenAI (`@ai-sdk/openai`), org-scoped tools (create/update/search issues, cycle summary, project status, list members — reuse internal logic, enforce org scoping in EVERY tool), chat UI at `/ai`, triage assist (embeddings on issue create via scheduled internal action filling `issues.embedding`, vector index `by_embedding`, dimensions 1536), duplicate detection, standup/cycle reports, rate limiting (`@convex-dev/rate-limiter`: 50 msgs/user/day on Pro, unlimited Enterprise), gate everything with `hasAiAccess(ctx.org)` and `has({ feature: "ai_agent" })` in UI.
+Convex Agent component (`@convex-dev/agent`) with OpenAI (`@ai-sdk/openai`), org-scoped tools (create/update/search issues, cycle summary, project status, list members — reuse internal logic, enforce org scoping in EVERY tool), chat UI at `/ai`, triage assist (embeddings on issue create via scheduled internal action filling `issues.embedding`, vector index `by_embedding`, dimensions 1536), duplicate detection, standup/cycle reports, rate limiting (`@convex-dev/rate-limiter`: 50 msgs/user/day on Pro, unlimited on Max/Enterprise), gate everything with `hasAiAccess(ctx.org)` in Convex and `org.plan !== "free"` in UI.
 **Owns:** `convex/agent/` (use `"use node"` only in action files needing it), `components/ai/`, `app/(app)/[orgSlug]/ai/`.
 **Env:** `OPENAI_API_KEY` must be set on the Convex deployment (`npx convex env set OPENAI_API_KEY ...` from main checkout — ask the human if missing).
 
 ### Track E — Billing & Gating (`track/billing`)
 
-Custom pricing page (REPLACES placeholder): three hand-designed shadcn plan cards + feature comparison + monthly/annual toggle, using **`<CheckoutButton>` and `<PlanDetailsButton>` from `@clerk/nextjs/experimental` with custom child buttons** (NOT `<PricingTable />`), wrapped in `<Show when="signed-in">` and guarded by an active org. Org billing settings page with `<SubscriptionDetailsButton for="organization">` + current-plan summary. Upgrade prompts where free-tier limits hit (listen for the error messages from `convex/lib/limits.ts`). Members management page (invite via Clerk's `<OrganizationProfile />` or custom UI).
-**Owns:** `app/(marketing)/pricing/`, `app/(app)/[orgSlug]/settings/`, `components/billing/`, `lib/plans.ts`.
-**Plan data:** slugs `free_org` / `pro` / `enterprise`; IDs: free `cplan_3F1zEN33U3ist3e1eWPiu7xwDUg`, pro `cplan_3F1zOlRdECmGJjGmWIwzRyjeK5O` ($20/mo base + $10/seat after the first seat, max 10 members, seat-based), enterprise `cplan_3F1zOpyzIlH2xrZiCaIc2DqFOOL` ($99/mo flat, unlimited members pending B2B add-on). Features: `ai_agent`, `unlimited_projects`, `unlimited_issues`, `unlimited_seats`, `unlimited_ai`, `priority_support`. Annual prices exist (pro $16/mo-equiv, enterprise $79/mo-equiv). Put IDs in `lib/plans.ts`, not inline.
+Custom pricing page (REPLACES placeholder): four hand-designed shadcn plan cards + feature comparison + monthly/annual toggle, using **Polar's `<CheckoutLink>` / `<CustomerPortalLink>` from `@convex-dev/polar/react`** styled with `buttonVariants`, guarded by an active org. Org billing settings page with the Polar customer portal + current-plan summary. Upgrade prompts where free-tier limits hit (listen for the error messages from `convex/lib/limits.ts`). Members management page.
+**Owns:** `app/(marketing)/pricing/`, `app/(app)/[orgSlug]/settings/`, `components/billing/`, `lib/plans.ts`, `convex/polar.ts`.
+**Plan data:** `free` / `pro` ($20/seat/mo, $16 annual, up to 10) / `max` ($40/seat/mo, $32 annual, up to 25) / `enterprise` ($99/mo flat, $79 annual, unlimited). Polar product ids come from env: server-side `POLAR_{PRO,MAX,ENTERPRISE}_{MONTHLY,ANNUAL}` (in `convex/polar.ts` + the http webhook map) and client-side `NEXT_PUBLIC_POLAR_*` mirrors (in `lib/plans.ts`). Never inline product ids — keep them in `lib/plans.ts` / env. Also set `POLAR_ORGANIZATION_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SERVER` on the Convex deployment. Polar webhook endpoint: `https://<deployment>.convex.site/polar/events`.
 
 ### Track F — Landing Page (`track/landing`)
 
