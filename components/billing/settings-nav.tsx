@@ -1,12 +1,12 @@
 "use client";
 
-import { ListChecks, Plug, Users } from "lucide-react";
+import { CreditCard, ListChecks, Plug, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_PAGES = [
-  // { label: "Billing", segment: "billing", icon: CreditCard },
+  { label: "Billing", segment: "billing", icon: CreditCard },
   { label: "Members", segment: "members", icon: Users },
   { label: "Custom fields", segment: "custom-fields", icon: ListChecks },
   { label: "Integrations", segment: "integrations", icon: Plug },

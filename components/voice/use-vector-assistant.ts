@@ -5,7 +5,7 @@
 // Split of responsibilities:
 //   - Web Speech API (SpeechRecognition): continuous, local, free background
 //     listening for the wake word "vector" and transcription of the command.
-//   - Convex actions (voice.reply / voice.speak): the brain (DeepSeek chat) +
+//   - Convex actions (voice.reply / voice.speak): the brain (Kimi K3 chat) +
 //     the voice (Deepgram Aura TTS). API keys live only on the Convex
 //     deployment, never in the browser.
 //
