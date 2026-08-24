@@ -23,6 +23,7 @@ type RunMutationCtx = {
       clerkOrgId: string;
       plan: "free" | "pro" | "max" | "enterprise";
       subscriptionStatus?: string;
+      customerEmail?: string;
     }
   ) => Promise<null>;
 };
@@ -109,6 +110,7 @@ async function syncPolarSubscription(
     clerkOrgId,
     plan,
     subscriptionStatus: status,
+    customerEmail: sub.customer?.email ?? undefined,
   });
 }
 

@@ -7,7 +7,7 @@ import { createOpenAI } from "@ai-sdk/openai";
  * each configured entirely through environment variables so base URLs,
  * credentials and model ids can be swapped without code changes:
  *
- *   Chat (Bluesminds gateway):
+ *   Chat (Kimi API):
  *     - OPENAI_API_KEY    — credential (required for the agent to function)
  *     - OPENAI_BASE_URL   — OpenAI-compatible base URL (must include /v1)
  *     - OPENAI_CHAT_MODEL — chat model id
@@ -23,13 +23,13 @@ import { createOpenAI } from "@ai-sdk/openai";
  * actual LLM calls will fail.
  */
 export const CHAT_MODEL_ID =
-  process.env.OPENAI_CHAT_MODEL ?? "deepseek-v4-flash";
+  process.env.OPENAI_CHAT_MODEL ?? "kimi-k3";
 
 /** 1536 dimensions — matches the `by_embedding` vector index on `issues`. */
 export const EMBEDDING_MODEL_ID =
   process.env.OPENAI_EMBEDDING_MODEL ?? "openai/text-embedding-3-small";
 
-/** Chat provider — the Bluesminds OpenAI-compatible gateway. */
+/** Chat provider — the Kimi OpenAI-compatible API. */
 const chatProvider = createOpenAI({
   baseURL: process.env.OPENAI_BASE_URL || undefined,
   apiKey: process.env.OPENAI_API_KEY,
